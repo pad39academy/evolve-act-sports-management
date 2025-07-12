@@ -64,6 +64,11 @@ export interface IStorage {
   updateHotel(id: number, hotel: Partial<InsertHotel>): Promise<Hotel>;
   deleteHotel(id: number): Promise<void>;
   
+  // Admin hotel approval operations
+  getPendingHotels(): Promise<Hotel[]>;
+  approveHotel(hotelId: number, approvedBy: number): Promise<Hotel>;
+  rejectHotel(hotelId: number, rejectionReason: string): Promise<void>;
+  
   // Room category operations
   getRoomCategoriesByHotel(hotelId: number): Promise<RoomCategory[]>;
   createRoomCategory(roomCategory: InsertRoomCategory): Promise<RoomCategory>;
@@ -315,6 +320,33 @@ export class DatabaseStorage implements IStorage {
   async getBookingRequestWithDetails(id: number): Promise<BookingRequest | undefined> {
     const [request] = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id));
     return request;
+  }
+
+  // Admin hotel approval operations
+  async getPendingHotels(): Promise<Hotel[]> {
+    return await db.select().from(hotels).where(eq(hotels.approved, "pending"));
+  }
+
+  async approveHotel(hotelId: number, approvedBy: number): Promise<Hotel> {
+    const [approvedHotel] = await db
+      .update(hotels)
+      .set({ 
+        approved: "approved",
+        updatedAt: new Date()
+      })
+      .where(eq(hotels.id, hotelId))
+      .returning();
+    return approvedHotel;
+  }
+
+  async rejectHotel(hotelId: number, rejectionReason: string): Promise<void> {
+    await db
+      .update(hotels)
+      .set({ 
+        approved: "rejected",
+        updatedAt: new Date()
+      })
+      .where(eq(hotels.id, hotelId));
   }
 }
 

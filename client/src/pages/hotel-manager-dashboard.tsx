@@ -514,6 +514,11 @@ export default function HotelManagerDashboard() {
                   <DialogTitle>
                     {editingHotel ? 'Edit Hotel' : 'Add New Hotel'}
                   </DialogTitle>
+                  {!editingHotel && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      New hotels require approval from admin or event manager before they can accept bookings.
+                    </p>
+                  )}
                 </DialogHeader>
                 <form onSubmit={handleHotelSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -685,6 +690,18 @@ export default function HotelManagerDashboard() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Available</span>
                       <Badge variant="outline">{hotel.availableRooms}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Status</span>
+                      <Badge variant={
+                        hotel.approved === 'approved' ? 'default' : 
+                        hotel.approved === 'pending' ? 'secondary' : 
+                        'destructive'
+                      }>
+                        {hotel.approved === 'approved' ? 'Approved' : 
+                         hotel.approved === 'pending' ? 'Pending' : 
+                         'Rejected'}
+                      </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Auto-approve</span>

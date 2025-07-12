@@ -197,7 +197,7 @@ export const hotels = pgTable("hotels", {
   availableRooms: integer("available_rooms").default(0),
   address: text("address"),
   contactInfo: text("contact_info"), // JSON object with phone, email, etc.
-  approved: varchar("approved", { length: 10 }).default("false"),
+  approved: varchar("approved", { length: 10 }).default("pending"),
   autoApproveBookings: boolean("auto_approve_bookings").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

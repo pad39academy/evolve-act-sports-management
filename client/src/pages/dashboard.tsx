@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, User, Settings, Calendar, Users } from "lucide-react";
+import { LogOut, User, Settings, Calendar, Users, Hotel, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser, logoutUser } from "@/lib/auth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface User {
   id: number;
@@ -21,6 +24,61 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Query for pending hotels (only for admins and event managers)
+  const { data: pendingHotels, isLoading: hotelsLoading } = useQuery({
+    queryKey: ['/api/admin/hotels/pending'],
+    enabled: user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role),
+    retry: false,
+  });
+
+  // Hotel approval mutation
+  const approveHotelMutation = useMutation({
+    mutationFn: async (hotelId: number) => {
+      return await apiRequest(`/api/admin/hotels/${hotelId}/approve`, {
+        method: 'PATCH',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Hotel Approved",
+        description: "The hotel has been approved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/hotels/pending'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve hotel",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Hotel rejection mutation  
+  const rejectHotelMutation = useMutation({
+    mutationFn: async ({ hotelId, reason }: { hotelId: number; reason: string }) => {
+      return await apiRequest(`/api/admin/hotels/${hotelId}/reject`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Hotel Rejected",
+        description: "The hotel has been rejected",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/hotels/pending'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject hotel",
+        variant: "destructive",
+      });
+    },
+  });
 
   useEffect(() => {
     loadUser();
@@ -95,6 +153,15 @@ export default function Dashboard() {
     };
     return names[role as keyof typeof names] || role;
   };
+
+  const handleRejectHotel = (hotelId: number) => {
+    const reason = prompt("Enter rejection reason:");
+    if (reason) {
+      rejectHotelMutation.mutate({ hotelId, reason });
+    }
+  };
+
+  const canApproveHotels = user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role);
 
   if (isLoading) {
     return (
@@ -211,6 +278,72 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Hotel Approval Section (for admins and event managers) */}
+        {canApproveHotels && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Hotel className="h-5 w-5" />
+                <span>Hotel Approvals</span>
+                {pendingHotels && pendingHotels.length > 0 && (
+                  <Badge variant="secondary">{pendingHotels.length}</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {hotelsLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-gray-600">Loading pending hotels...</p>
+                </div>
+              ) : pendingHotels && pendingHotels.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingHotels.map((hotel: any) => (
+                    <div key={hotel.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{hotel.name}</h4>
+                        <p className="text-sm text-gray-600">{hotel.address}</p>
+                        <p className="text-sm text-gray-500">
+                          {hotel.totalRooms} rooms • {hotel.proximityToVenue}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => approveHotelMutation.mutate(hotel.id)}
+                          disabled={approveHotelMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <Check className="h-4 w-4" />
+                          <span>Approve</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRejectHotel(hotel.id)}
+                          disabled={rejectHotelMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <X className="h-4 w-4" />
+                          <span>Reject</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Hotel className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No pending hotel approvals</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    All hotels are currently approved
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Activity */}
         <Card className="mt-8">

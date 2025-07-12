@@ -542,6 +542,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin hotel approval routes
+  app.get('/api/admin/hotels/pending', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin or Event Manager only' });
+      }
+
+      const pendingHotels = await storage.getPendingHotels();
+      res.json(pendingHotels);
+    } catch (error) {
+      console.error('Error fetching pending hotels:', error);
+      res.status(500).json({ message: 'Failed to fetch pending hotels' });
+    }
+  });
+
+  app.patch('/api/admin/hotels/:id/approve', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin or Event Manager only' });
+      }
+
+      const hotelId = parseInt(req.params.id);
+      const approvedHotel = await storage.approveHotel(hotelId, userId);
+      res.json(approvedHotel);
+    } catch (error) {
+      console.error('Error approving hotel:', error);
+      res.status(500).json({ message: 'Failed to approve hotel' });
+    }
+  });
+
+  app.patch('/api/admin/hotels/:id/reject', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin or Event Manager only' });
+      }
+
+      const hotelId = parseInt(req.params.id);
+      const { reason } = req.body;
+      await storage.rejectHotel(hotelId, reason);
+      res.json({ message: 'Hotel rejected successfully' });
+    } catch (error) {
+      console.error('Error rejecting hotel:', error);
+      res.status(500).json({ message: 'Failed to reject hotel' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
