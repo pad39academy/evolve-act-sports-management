@@ -16,12 +16,13 @@ export default function OTPVerification() {
   const [activeTab, setActiveTab] = useState("email");
   const [generatedOTP, setGeneratedOTP] = useState("123456"); // Developer mode
 
-  // Extract userId from URL params
-  const urlParams = new URLSearchParams(location.split("?")[1] || "");
+  // Extract userId from URL params using window.location.search
+  const urlParams = new URLSearchParams(window.location.search);
   const userId = urlParams.get("userId");
 
   console.log("OTP Verification page loaded with location:", location);
-  console.log("URL search params:", location.split("?")[1] || "");
+  console.log("Window location search:", window.location.search);
+  console.log("Full window location:", window.location.href);
   console.log("Extracted userId:", userId);
 
   useEffect(() => {
