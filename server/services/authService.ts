@@ -34,10 +34,11 @@ export class AuthService {
       const otp = await otpService.createOTP(user.id, 'email');
       await otpService.sendOTPEmail(user.email, otp);
 
-      // Also send SMS OTP if mobile number provided
-      if (userData.mobileNumber) {
+      // Also send SMS OTP (mobile number is now mandatory)
+      if (userData.mobileNumber && userData.mobileCountryCode) {
         const smsOtp = await otpService.createOTP(user.id, 'sms');
-        await otpService.sendOTPSMS(userData.mobileNumber, smsOtp);
+        const fullMobileNumber = `${userData.mobileCountryCode}${userData.mobileNumber}`;
+        await otpService.sendOTPSMS(fullMobileNumber, smsOtp);
       }
 
       return {

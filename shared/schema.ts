@@ -22,7 +22,10 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   role: varchar("role", { length: 50 }).notNull(),
   organization: varchar("organization", { length: 255 }).notNull(),
-  mobileNumber: varchar("mobile_number", { length: 20 }),
+  mobileCountryCode: varchar("mobile_country_code", { length: 10 }).notNull(),
+  mobileNumber: varchar("mobile_number", { length: 20 }).notNull(),
+  whatsappCountryCode: varchar("whatsapp_country_code", { length: 10 }),
+  whatsappNumber: varchar("whatsapp_number", { length: 20 }),
   isVerified: varchar("is_verified", { length: 10 }).default("false"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -38,6 +41,35 @@ export const otpVerifications = pgTable("otp_verifications", {
   isUsed: varchar("is_used", { length: 10 }).default("false"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Country codes for mobile and WhatsApp
+export const countryCodes = [
+  { code: "+1", country: "United States", flag: "🇺🇸" },
+  { code: "+44", country: "United Kingdom", flag: "🇬🇧" },
+  { code: "+91", country: "India", flag: "🇮🇳" },
+  { code: "+86", country: "China", flag: "🇨🇳" },
+  { code: "+81", country: "Japan", flag: "🇯🇵" },
+  { code: "+49", country: "Germany", flag: "🇩🇪" },
+  { code: "+33", country: "France", flag: "🇫🇷" },
+  { code: "+39", country: "Italy", flag: "🇮🇹" },
+  { code: "+34", country: "Spain", flag: "🇪🇸" },
+  { code: "+7", country: "Russia", flag: "🇷🇺" },
+  { code: "+61", country: "Australia", flag: "🇦🇺" },
+  { code: "+55", country: "Brazil", flag: "🇧🇷" },
+  { code: "+52", country: "Mexico", flag: "🇲🇽" },
+  { code: "+82", country: "South Korea", flag: "🇰🇷" },
+  { code: "+65", country: "Singapore", flag: "🇸🇬" },
+  { code: "+60", country: "Malaysia", flag: "🇲🇾" },
+  { code: "+66", country: "Thailand", flag: "🇹🇭" },
+  { code: "+84", country: "Vietnam", flag: "🇻🇳" },
+  { code: "+63", country: "Philippines", flag: "🇵🇭" },
+  { code: "+62", country: "Indonesia", flag: "🇮🇩" },
+  { code: "+971", country: "UAE", flag: "🇦🇪" },
+  { code: "+966", country: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "+27", country: "South Africa", flag: "🇿🇦" },
+  { code: "+20", country: "Egypt", flag: "🇪🇬" },
+  { code: "+234", country: "Nigeria", flag: "🇳🇬" },
+] as const;
 
 // Validation schemas
 export const userRoles = [
@@ -57,7 +89,10 @@ export const insertUserSchema = createInsertSchema(users, {
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   organization: z.string().min(1, "Organization is required"),
-  mobileNumber: z.string().optional(),
+  mobileCountryCode: z.string().min(1, "Mobile country code is required"),
+  mobileNumber: z.string().min(1, "Mobile number is required"),
+  whatsappCountryCode: z.string().optional(),
+  whatsappNumber: z.string().optional(),
 }).omit({ id: true, createdAt: true, updatedAt: true, isVerified: true });
 
 export const registerSchema = insertUserSchema.extend({

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { registerUser } from "@/lib/auth";
-import { registerSchema, type RegisterData } from "@shared/schema";
+import { registerSchema, type RegisterData, countryCodes } from "@shared/schema";
 
 export default function Register() {
   const [, setLocation] = useLocation();
@@ -30,7 +30,10 @@ export default function Register() {
       organization: "",
       password: "",
       confirmPassword: "",
+      mobileCountryCode: "+91",
       mobileNumber: "",
+      whatsappCountryCode: "+91",
+      whatsappNumber: "",
     },
   });
 
@@ -259,17 +262,70 @@ export default function Register() {
                 </div>
               </div>
 
-              {/* Mobile Number (Optional) */}
+              {/* Mobile Number (Mandatory) */}
               <div>
-                <Label htmlFor="mobileNumber">Mobile Number (Optional)</Label>
-                <Input
-                  id="mobileNumber"
-                  type="tel"
-                  {...form.register("mobileNumber")}
-                  placeholder="Enter your mobile number"
-                  className="mt-2"
-                />
+                <Label htmlFor="mobileNumber">Mobile Number *</Label>
+                <div className="flex gap-2 mt-2">
+                  <Select onValueChange={(value) => form.setValue("mobileCountryCode", value)} defaultValue="+91">
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countryCodes.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.flag} {country.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="mobileNumber"
+                    type="tel"
+                    {...form.register("mobileNumber")}
+                    placeholder="Enter your mobile number"
+                    className="flex-1"
+                  />
+                </div>
+                {form.formState.errors.mobileNumber && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.mobileNumber.message}</p>
+                )}
+                {form.formState.errors.mobileCountryCode && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.mobileCountryCode.message}</p>
+                )}
                 <p className="mt-1 text-sm text-gray-600">For SMS OTP verification</p>
+              </div>
+
+              {/* WhatsApp Number (Optional) */}
+              <div>
+                <Label htmlFor="whatsappNumber">WhatsApp Number (Optional)</Label>
+                <div className="flex gap-2 mt-2">
+                  <Select onValueChange={(value) => form.setValue("whatsappCountryCode", value)} defaultValue="+91">
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countryCodes.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.flag} {country.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="whatsappNumber"
+                    type="tel"
+                    {...form.register("whatsappNumber")}
+                    placeholder="Enter your WhatsApp number"
+                    className="flex-1"
+                  />
+                </div>
+                {form.formState.errors.whatsappNumber && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.whatsappNumber.message}</p>
+                )}
+                {form.formState.errors.whatsappCountryCode && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.whatsappCountryCode.message}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-600">For WhatsApp notifications</p>
               </div>
 
               {/* Terms and Conditions */}
