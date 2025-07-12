@@ -14,7 +14,7 @@ export default function OTPVerification() {
   const [isLoading, setIsLoading] = useState(false);
   const [timer, setTimer] = useState(300); // 5 minutes
   const [activeTab, setActiveTab] = useState("email");
-  const [generatedOTP, setGeneratedOTP] = useState("123456"); // Developer mode
+  const [generatedOTP, setGeneratedOTP] = useState(""); // Developer mode
 
   // Extract userId from URL params using window.location.search
   const urlParams = new URLSearchParams(window.location.search);
@@ -112,7 +112,6 @@ export default function OTPVerification() {
           description: `A new OTP has been sent to your ${type === 'email' ? 'email' : 'mobile number'}.`,
         });
         setTimer(300); // Reset timer
-        setGeneratedOTP(Math.floor(100000 + Math.random() * 900000).toString()); // Generate new OTP for demo
       }
     } catch (error: any) {
       toast({
@@ -199,7 +198,15 @@ export default function OTPVerification() {
                 <div className="flex items-center mb-2">
                   <span className="text-white">Developer Console</span>
                 </div>
-                <div>Generated {activeTab === "email" ? "Email" : "SMS"} OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
+                <div className="text-yellow-400 mb-2">
+                  📧 Check server logs for the actual {activeTab === "email" ? "Email" : "SMS"} OTP
+                </div>
+                <div className="text-gray-400 text-xs">
+                  // User ID: {userId}
+                </div>
+                <div className="text-gray-400 text-xs">
+                  // OTP Type: {activeTab === "email" ? "Email" : "SMS"}
+                </div>
                 <div className="text-gray-400 text-xs mt-1">
                   // TODO: Integrate with {activeTab === "email" ? "email service" : "Twilio API"} for production
                 </div>
