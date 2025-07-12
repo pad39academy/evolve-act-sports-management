@@ -99,6 +99,11 @@ export default function Dashboard() {
         setLocation('/hotel-manager-dashboard');
         return;
       }
+      
+      if (userData.role === 'event_manager') {
+        setLocation('/event-manager-dashboard');
+        return;
+      }
     } catch (error) {
       toast({
         title: "Authentication Error",

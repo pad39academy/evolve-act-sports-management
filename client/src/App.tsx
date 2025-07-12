@@ -11,6 +11,7 @@ import OTPVerification from "@/pages/otp-verification";
 import Dashboard from "@/pages/dashboard";
 import PlayerDashboard from "@/pages/player-dashboard";
 import HotelManagerDashboard from "@/pages/hotel-manager-dashboard";
+import EventManagerDashboard from "@/pages/event-manager-dashboard";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/player-dashboard" component={PlayerDashboard} />
       <Route path="/hotel-manager-dashboard" component={HotelManagerDashboard} />
+      <Route path="/event-manager-dashboard" component={EventManagerDashboard} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route component={NotFound} />

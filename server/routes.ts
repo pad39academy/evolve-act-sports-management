@@ -594,6 +594,245 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Event Manager routes
+  // Tournament management
+  app.get('/api/event-manager/tournaments', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const tournaments = await storage.getTournamentsByManager(user.id);
+      res.json(tournaments);
+    } catch (error) {
+      console.error("Error fetching tournaments:", error);
+      res.status(500).json({ message: "Failed to fetch tournaments" });
+    }
+  });
+
+  app.post('/api/event-manager/tournaments', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const tournament = await storage.createTournament(req.body);
+      res.json(tournament);
+    } catch (error) {
+      console.error("Error creating tournament:", error);
+      res.status(500).json({ message: "Failed to create tournament" });
+    }
+  });
+
+  app.put('/api/event-manager/tournaments/:id', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const tournament = await storage.updateTournament(parseInt(req.params.id), req.body);
+      res.json(tournament);
+    } catch (error) {
+      console.error("Error updating tournament:", error);
+      res.status(500).json({ message: "Failed to update tournament" });
+    }
+  });
+
+  app.delete('/api/event-manager/tournaments/:id', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteTournament(parseInt(req.params.id));
+      res.json({ message: "Tournament deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting tournament:", error);
+      res.status(500).json({ message: "Failed to delete tournament" });
+    }
+  });
+
+  // Match management
+  app.get('/api/event-manager/matches', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const matches = await storage.getMatchesByManager(user.id);
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      res.status(500).json({ message: "Failed to fetch matches" });
+    }
+  });
+
+  app.get('/api/event-manager/tournaments/:id/matches', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const matches = await storage.getMatchesByTournament(parseInt(req.params.id));
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching tournament matches:", error);
+      res.status(500).json({ message: "Failed to fetch tournament matches" });
+    }
+  });
+
+  app.post('/api/event-manager/matches', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const matchData = { ...req.body, createdBy: user.id };
+      const match = await storage.createMatch(matchData);
+      res.json(match);
+    } catch (error) {
+      console.error("Error creating match:", error);
+      res.status(500).json({ message: "Failed to create match" });
+    }
+  });
+
+  app.put('/api/event-manager/matches/:id', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const match = await storage.updateMatch(parseInt(req.params.id), req.body);
+      res.json(match);
+    } catch (error) {
+      console.error("Error updating match:", error);
+      res.status(500).json({ message: "Failed to update match" });
+    }
+  });
+
+  app.delete('/api/event-manager/matches/:id', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteMatch(parseInt(req.params.id));
+      res.json({ message: "Match deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting match:", error);
+      res.status(500).json({ message: "Failed to delete match" });
+    }
+  });
+
+  // Hotel cluster management
+  app.get('/api/event-manager/clusters', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const clusters = await storage.getHotelClustersByManager(user.id);
+      res.json(clusters);
+    } catch (error) {
+      console.error("Error fetching hotel clusters:", error);
+      res.status(500).json({ message: "Failed to fetch hotel clusters" });
+    }
+  });
+
+  app.get('/api/event-manager/all-clusters', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const clusters = await storage.getHotelClusters();
+      res.json(clusters);
+    } catch (error) {
+      console.error("Error fetching all hotel clusters:", error);
+      res.status(500).json({ message: "Failed to fetch all hotel clusters" });
+    }
+  });
+
+  app.post('/api/event-manager/clusters', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const clusterData = { ...req.body, createdBy: user.id };
+      const cluster = await storage.createHotelCluster(clusterData);
+      res.json(cluster);
+    } catch (error) {
+      console.error("Error creating hotel cluster:", error);
+      res.status(500).json({ message: "Failed to create hotel cluster" });
+    }
+  });
+
+  app.put('/api/event-manager/clusters/:id', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const cluster = await storage.updateHotelCluster(parseInt(req.params.id), req.body);
+      res.json(cluster);
+    } catch (error) {
+      console.error("Error updating hotel cluster:", error);
+      res.status(500).json({ message: "Failed to update hotel cluster" });
+    }
+  });
+
+  app.delete('/api/event-manager/clusters/:id', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteHotelCluster(parseInt(req.params.id));
+      res.json({ message: "Hotel cluster deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting hotel cluster:", error);
+      res.status(500).json({ message: "Failed to delete hotel cluster" });
+    }
+  });
+
+  // Assign hotel to cluster
+  app.put('/api/event-manager/hotels/:hotelId/assign-cluster', requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { clusterId } = req.body;
+      const hotel = await storage.assignHotelToCluster(parseInt(req.params.hotelId), clusterId);
+      res.json(hotel);
+    } catch (error) {
+      console.error("Error assigning hotel to cluster:", error);
+      res.status(500).json({ message: "Failed to assign hotel to cluster" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

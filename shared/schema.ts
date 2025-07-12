@@ -176,13 +176,40 @@ export const events = pgTable("events", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Matches table (for Event Manager to create/edit matches under tournaments)
+export const matches = pgTable("matches", {
+  id: serial("id").primaryKey(),
+  tournamentId: integer("tournament_id").references(() => tournaments.id).notNull(),
+  eventId: integer("event_id").references(() => events.id), // Optional link to events
+  matchName: varchar("match_name", { length: 255 }).notNull(),
+  sport: varchar("sport", { length: 100 }).notNull(),
+  team1: varchar("team1", { length: 255 }).notNull(),
+  team2: varchar("team2", { length: 255 }).notNull(),
+  matchDate: timestamp("match_date").notNull(),
+  matchTime: varchar("match_time", { length: 10 }).notNull(),
+  venue: varchar("venue", { length: 255 }).notNull(),
+  venueAddress: text("venue_address"),
+  clusterId: integer("cluster_id").references(() => hotelClusters.id), // Link to hotel cluster
+  status: varchar("status", { length: 50 }).default("scheduled"), // scheduled, ongoing, completed, cancelled
+  result: text("result"), // Match result
+  notes: text("notes"),
+  createdBy: integer("created_by").references(() => users.id), // Event Manager ID
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Hotel clusters table
 export const hotelClusters = pgTable("hotel_clusters", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   city: varchar("city", { length: 100 }).notNull(),
+  stadiumName: varchar("stadium_name", { length: 255 }),
+  stadiumAddress: text("stadium_address"),
   description: text("description"),
+  maxRadius: integer("max_radius").default(10), // km radius from stadium
+  createdBy: integer("created_by").references(() => users.id), // Event Manager ID
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Hotels table
@@ -264,6 +291,7 @@ export const playerBookings = pgTable("player_bookings", {
 export const insertTournamentSchema = createInsertSchema(tournaments);
 export const insertTeamSchema = createInsertSchema(teams);
 export const insertEventSchema = createInsertSchema(events);
+export const insertMatchSchema = createInsertSchema(matches);
 export const insertHotelClusterSchema = createInsertSchema(hotelClusters);
 export const insertHotelSchema = createInsertSchema(hotels);
 export const insertRoomCategorySchema = createInsertSchema(roomCategories);
@@ -277,6 +305,8 @@ export type Team = typeof teams.$inferSelect;
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type Match = typeof matches.$inferSelect;
+export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type HotelCluster = typeof hotelClusters.$inferSelect;
 export type InsertHotelCluster = z.infer<typeof insertHotelClusterSchema>;
 export type Hotel = typeof hotels.$inferSelect;

@@ -4,6 +4,7 @@ import {
   tournaments,
   teams,
   events,
+  matches,
   hotelClusters,
   hotels,
   roomCategories,
@@ -19,6 +20,8 @@ import {
   type InsertTeam,
   type Event,
   type InsertEvent,
+  type Match,
+  type InsertMatch,
   type HotelCluster,
   type InsertHotelCluster,
   type Hotel,
@@ -68,6 +71,28 @@ export interface IStorage {
   getPendingHotels(): Promise<Hotel[]>;
   approveHotel(hotelId: number, approvedBy: number): Promise<Hotel>;
   rejectHotel(hotelId: number, rejectionReason: string): Promise<void>;
+  
+  // Event Manager operations
+  // Tournament and match management
+  getTournamentsByManager(managerId: number): Promise<Tournament[]>;
+  createTournament(tournament: InsertTournament): Promise<Tournament>;
+  updateTournament(id: number, tournament: Partial<InsertTournament>): Promise<Tournament>;
+  deleteTournament(id: number): Promise<void>;
+  
+  // Match management
+  getMatchesByTournament(tournamentId: number): Promise<Match[]>;
+  getMatchesByManager(managerId: number): Promise<Match[]>;
+  createMatch(match: InsertMatch): Promise<Match>;
+  updateMatch(id: number, match: Partial<InsertMatch>): Promise<Match>;
+  deleteMatch(id: number): Promise<void>;
+  
+  // Hotel clustering operations
+  getHotelClusters(): Promise<HotelCluster[]>;
+  getHotelClustersByManager(managerId: number): Promise<HotelCluster[]>;
+  createHotelCluster(cluster: InsertHotelCluster): Promise<HotelCluster>;
+  updateHotelCluster(id: number, cluster: Partial<InsertHotelCluster>): Promise<HotelCluster>;
+  deleteHotelCluster(id: number): Promise<void>;
+  assignHotelToCluster(hotelId: number, clusterId: number): Promise<Hotel>;
   
   // Room category operations
   getRoomCategoriesByHotel(hotelId: number): Promise<RoomCategory[]>;
@@ -347,6 +372,90 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(hotels.id, hotelId));
+  }
+
+  // Event Manager operations
+  async getTournamentsByManager(managerId: number): Promise<Tournament[]> {
+    return await db.select().from(tournaments);
+  }
+
+  async createTournament(tournament: InsertTournament): Promise<Tournament> {
+    const [createdTournament] = await db.insert(tournaments).values(tournament).returning();
+    return createdTournament;
+  }
+
+  async updateTournament(id: number, tournament: Partial<InsertTournament>): Promise<Tournament> {
+    const [updatedTournament] = await db
+      .update(tournaments)
+      .set({ ...tournament, updatedAt: new Date() })
+      .where(eq(tournaments.id, id))
+      .returning();
+    return updatedTournament;
+  }
+
+  async deleteTournament(id: number): Promise<void> {
+    await db.delete(tournaments).where(eq(tournaments.id, id));
+  }
+
+  async getMatchesByTournament(tournamentId: number): Promise<Match[]> {
+    return await db.select().from(matches).where(eq(matches.tournamentId, tournamentId));
+  }
+
+  async getMatchesByManager(managerId: number): Promise<Match[]> {
+    return await db.select().from(matches).where(eq(matches.createdBy, managerId));
+  }
+
+  async createMatch(match: InsertMatch): Promise<Match> {
+    const [createdMatch] = await db.insert(matches).values(match).returning();
+    return createdMatch;
+  }
+
+  async updateMatch(id: number, match: Partial<InsertMatch>): Promise<Match> {
+    const [updatedMatch] = await db
+      .update(matches)
+      .set({ ...match, updatedAt: new Date() })
+      .where(eq(matches.id, id))
+      .returning();
+    return updatedMatch;
+  }
+
+  async deleteMatch(id: number): Promise<void> {
+    await db.delete(matches).where(eq(matches.id, id));
+  }
+
+  async getHotelClusters(): Promise<HotelCluster[]> {
+    return await db.select().from(hotelClusters);
+  }
+
+  async getHotelClustersByManager(managerId: number): Promise<HotelCluster[]> {
+    return await db.select().from(hotelClusters).where(eq(hotelClusters.createdBy, managerId));
+  }
+
+  async createHotelCluster(cluster: InsertHotelCluster): Promise<HotelCluster> {
+    const [createdCluster] = await db.insert(hotelClusters).values(cluster).returning();
+    return createdCluster;
+  }
+
+  async updateHotelCluster(id: number, cluster: Partial<InsertHotelCluster>): Promise<HotelCluster> {
+    const [updatedCluster] = await db
+      .update(hotelClusters)
+      .set({ ...cluster, updatedAt: new Date() })
+      .where(eq(hotelClusters.id, id))
+      .returning();
+    return updatedCluster;
+  }
+
+  async deleteHotelCluster(id: number): Promise<void> {
+    await db.delete(hotelClusters).where(eq(hotelClusters.id, id));
+  }
+
+  async assignHotelToCluster(hotelId: number, clusterId: number): Promise<Hotel> {
+    const [updatedHotel] = await db
+      .update(hotels)
+      .set({ clusterId, updatedAt: new Date() })
+      .where(eq(hotels.id, hotelId))
+      .returning();
+    return updatedHotel;
   }
 }
 
