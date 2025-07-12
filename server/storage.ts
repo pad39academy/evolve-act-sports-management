@@ -6,6 +6,8 @@ import {
   events,
   hotelClusters,
   hotels,
+  roomCategories,
+  bookingRequests,
   playerBookings,
   type User,
   type InsertUser,
@@ -21,6 +23,10 @@ import {
   type InsertHotelCluster,
   type Hotel,
   type InsertHotel,
+  type RoomCategory,
+  type InsertRoomCategory,
+  type BookingRequest,
+  type InsertBookingRequest,
   type PlayerBooking,
   type InsertPlayerBooking,
 } from "@shared/schema";
@@ -51,6 +57,24 @@ export interface IStorage {
   getEvents(): Promise<Event[]>;
   getHotels(): Promise<Hotel[]>;
   getHotelClusters(): Promise<HotelCluster[]>;
+
+  // Hotel management operations
+  getHotelsByManager(managerId: number): Promise<Hotel[]>;
+  createHotel(hotel: InsertHotel): Promise<Hotel>;
+  updateHotel(id: number, hotel: Partial<InsertHotel>): Promise<Hotel>;
+  deleteHotel(id: number): Promise<void>;
+  
+  // Room category operations
+  getRoomCategoriesByHotel(hotelId: number): Promise<RoomCategory[]>;
+  createRoomCategory(roomCategory: InsertRoomCategory): Promise<RoomCategory>;
+  updateRoomCategory(id: number, roomCategory: Partial<InsertRoomCategory>): Promise<RoomCategory>;
+  deleteRoomCategory(id: number): Promise<void>;
+  
+  // Booking request operations
+  getBookingRequestsByHotel(hotelId: number): Promise<BookingRequest[]>;
+  getPendingBookingRequests(hotelId: number): Promise<BookingRequest[]>;
+  updateBookingRequestStatus(id: number, status: string, approvedBy?: number, rejectionReason?: string): Promise<BookingRequest>;
+  getBookingRequestWithDetails(id: number): Promise<BookingRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -205,6 +229,92 @@ export class DatabaseStorage implements IStorage {
 
   async getHotelClusters(): Promise<HotelCluster[]> {
     return await db.select().from(hotelClusters);
+  }
+
+  // Hotel management operations
+  async getHotelsByManager(managerId: number): Promise<Hotel[]> {
+    return await db.select().from(hotels).where(eq(hotels.managerId, managerId));
+  }
+
+  async createHotel(hotel: InsertHotel): Promise<Hotel> {
+    const [newHotel] = await db.insert(hotels).values(hotel).returning();
+    return newHotel;
+  }
+
+  async updateHotel(id: number, hotel: Partial<InsertHotel>): Promise<Hotel> {
+    const [updatedHotel] = await db
+      .update(hotels)
+      .set({ ...hotel, updatedAt: new Date() })
+      .where(eq(hotels.id, id))
+      .returning();
+    return updatedHotel;
+  }
+
+  async deleteHotel(id: number): Promise<void> {
+    await db.delete(hotels).where(eq(hotels.id, id));
+  }
+
+  // Room category operations
+  async getRoomCategoriesByHotel(hotelId: number): Promise<RoomCategory[]> {
+    return await db.select().from(roomCategories).where(eq(roomCategories.hotelId, hotelId));
+  }
+
+  async createRoomCategory(roomCategory: InsertRoomCategory): Promise<RoomCategory> {
+    const [newRoomCategory] = await db.insert(roomCategories).values(roomCategory).returning();
+    return newRoomCategory;
+  }
+
+  async updateRoomCategory(id: number, roomCategory: Partial<InsertRoomCategory>): Promise<RoomCategory> {
+    const [updatedRoomCategory] = await db
+      .update(roomCategories)
+      .set({ ...roomCategory, updatedAt: new Date() })
+      .where(eq(roomCategories.id, id))
+      .returning();
+    return updatedRoomCategory;
+  }
+
+  async deleteRoomCategory(id: number): Promise<void> {
+    await db.delete(roomCategories).where(eq(roomCategories.id, id));
+  }
+
+  // Booking request operations
+  async getBookingRequestsByHotel(hotelId: number): Promise<BookingRequest[]> {
+    return await db.select().from(bookingRequests).where(eq(bookingRequests.hotelId, hotelId));
+  }
+
+  async getPendingBookingRequests(hotelId: number): Promise<BookingRequest[]> {
+    return await db.select().from(bookingRequests).where(
+      and(
+        eq(bookingRequests.hotelId, hotelId),
+        eq(bookingRequests.status, "pending")
+      )
+    );
+  }
+
+  async updateBookingRequestStatus(id: number, status: string, approvedBy?: number, rejectionReason?: string): Promise<BookingRequest> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+    
+    if (status === "approved") {
+      updateData.approvedAt = new Date();
+      updateData.approvedBy = approvedBy;
+    } else if (status === "rejected") {
+      updateData.rejectionReason = rejectionReason;
+    }
+
+    const [updatedRequest] = await db
+      .update(bookingRequests)
+      .set(updateData)
+      .where(eq(bookingRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async getBookingRequestWithDetails(id: number): Promise<BookingRequest | undefined> {
+    const [request] = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id));
+    return request;
   }
 }
 

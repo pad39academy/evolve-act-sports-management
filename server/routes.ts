@@ -334,6 +334,214 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Hotel Manager dashboard routes
+  app.get('/api/hotel-manager/hotels', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotels = await storage.getHotelsByManager(userId);
+      res.json(hotels);
+    } catch (error) {
+      console.error('Error fetching hotels:', error);
+      res.status(500).json({ message: 'Failed to fetch hotels' });
+    }
+  });
+
+  app.post('/api/hotel-manager/hotels', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelData = { ...req.body, managerId: userId };
+      const hotel = await storage.createHotel(hotelData);
+      res.json(hotel);
+    } catch (error) {
+      console.error('Error creating hotel:', error);
+      res.status(500).json({ message: 'Failed to create hotel' });
+    }
+  });
+
+  app.put('/api/hotel-manager/hotels/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelId = parseInt(req.params.id);
+      const hotel = await storage.updateHotel(hotelId, req.body);
+      res.json(hotel);
+    } catch (error) {
+      console.error('Error updating hotel:', error);
+      res.status(500).json({ message: 'Failed to update hotel' });
+    }
+  });
+
+  app.delete('/api/hotel-manager/hotels/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelId = parseInt(req.params.id);
+      await storage.deleteHotel(hotelId);
+      res.json({ message: 'Hotel deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting hotel:', error);
+      res.status(500).json({ message: 'Failed to delete hotel' });
+    }
+  });
+
+  // Room categories routes
+  app.get('/api/hotel-manager/hotels/:hotelId/rooms', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelId = parseInt(req.params.hotelId);
+      const roomCategories = await storage.getRoomCategoriesByHotel(hotelId);
+      res.json(roomCategories);
+    } catch (error) {
+      console.error('Error fetching room categories:', error);
+      res.status(500).json({ message: 'Failed to fetch room categories' });
+    }
+  });
+
+  app.post('/api/hotel-manager/hotels/:hotelId/rooms', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelId = parseInt(req.params.hotelId);
+      const roomData = { ...req.body, hotelId };
+      const roomCategory = await storage.createRoomCategory(roomData);
+      res.json(roomCategory);
+    } catch (error) {
+      console.error('Error creating room category:', error);
+      res.status(500).json({ message: 'Failed to create room category' });
+    }
+  });
+
+  app.put('/api/hotel-manager/rooms/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const roomId = parseInt(req.params.id);
+      const roomCategory = await storage.updateRoomCategory(roomId, req.body);
+      res.json(roomCategory);
+    } catch (error) {
+      console.error('Error updating room category:', error);
+      res.status(500).json({ message: 'Failed to update room category' });
+    }
+  });
+
+  app.delete('/api/hotel-manager/rooms/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const roomId = parseInt(req.params.id);
+      await storage.deleteRoomCategory(roomId);
+      res.json({ message: 'Room category deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting room category:', error);
+      res.status(500).json({ message: 'Failed to delete room category' });
+    }
+  });
+
+  // Booking requests routes
+  app.get('/api/hotel-manager/hotels/:hotelId/booking-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelId = parseInt(req.params.hotelId);
+      const bookingRequests = await storage.getBookingRequestsByHotel(hotelId);
+      res.json(bookingRequests);
+    } catch (error) {
+      console.error('Error fetching booking requests:', error);
+      res.status(500).json({ message: 'Failed to fetch booking requests' });
+    }
+  });
+
+  app.get('/api/hotel-manager/hotels/:hotelId/pending-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const hotelId = parseInt(req.params.hotelId);
+      const pendingRequests = await storage.getPendingBookingRequests(hotelId);
+      res.json(pendingRequests);
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+      res.status(500).json({ message: 'Failed to fetch pending requests' });
+    }
+  });
+
+  app.patch('/api/hotel-manager/booking-requests/:id/approve', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const requestId = parseInt(req.params.id);
+      const updatedRequest = await storage.updateBookingRequestStatus(requestId, 'approved', userId);
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error('Error approving booking request:', error);
+      res.status(500).json({ message: 'Failed to approve booking request' });
+    }
+  });
+
+  app.patch('/api/hotel-manager/booking-requests/:id/reject', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: 'Access denied - Hotel Managers only' });
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { reason } = req.body;
+      const updatedRequest = await storage.updateBookingRequestStatus(requestId, 'rejected', userId, reason);
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error('Error rejecting booking request:', error);
+      res.status(500).json({ message: 'Failed to reject booking request' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

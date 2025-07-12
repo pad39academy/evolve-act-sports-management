@@ -1,4 +1,4 @@
-import { pgTable, text, serial, varchar, timestamp, jsonb, index, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, varchar, timestamp, jsonb, index, integer, boolean, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -189,6 +189,7 @@ export const hotelClusters = pgTable("hotel_clusters", {
 export const hotels = pgTable("hotels", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+  managerId: integer("manager_id").references(() => users.id),
   clusterId: integer("cluster_id").references(() => hotelClusters.id),
   proximityToVenue: varchar("proximity_to_venue", { length: 255 }),
   notableFeatures: text("notable_features"),
@@ -197,6 +198,42 @@ export const hotels = pgTable("hotels", {
   address: text("address"),
   contactInfo: text("contact_info"), // JSON object with phone, email, etc.
   approved: varchar("approved", { length: 10 }).default("false"),
+  autoApproveBookings: boolean("auto_approve_bookings").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Room categories table
+export const roomCategories = pgTable("room_categories", {
+  id: serial("id").primaryKey(),
+  hotelId: integer("hotel_id").references(() => hotels.id),
+  categoryName: varchar("category_name", { length: 100 }).notNull(),
+  totalRooms: integer("total_rooms").default(0),
+  availableRooms: integer("available_rooms").default(0),
+  pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }),
+  amenities: text("amenities"), // JSON array of amenities
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Booking requests table
+export const bookingRequests = pgTable("booking_requests", {
+  id: serial("id").primaryKey(),
+  requesterId: integer("requester_id").references(() => users.id), // Team Manager ID
+  hotelId: integer("hotel_id").references(() => hotels.id),
+  roomCategoryId: integer("room_category_id").references(() => roomCategories.id),
+  tournamentId: integer("tournament_id").references(() => tournaments.id),
+  eventId: integer("event_id").references(() => events.id),
+  teamName: varchar("team_name", { length: 255 }),
+  numberOfRooms: integer("number_of_rooms").default(1),
+  checkInDate: timestamp("check_in_date"),
+  checkOutDate: timestamp("check_out_date"),
+  specialRequests: text("special_requests"),
+  status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
+  rejectionReason: text("rejection_reason"),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: integer("approved_by").references(() => users.id), // Hotel Manager ID
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -205,9 +242,11 @@ export const hotels = pgTable("hotels", {
 export const playerBookings = pgTable("player_bookings", {
   id: serial("id").primaryKey(),
   playerId: integer("player_id").references(() => users.id),
+  bookingRequestId: integer("booking_request_id").references(() => bookingRequests.id),
   tournamentId: integer("tournament_id").references(() => tournaments.id),
   eventId: integer("event_id").references(() => events.id),
   hotelId: integer("hotel_id").references(() => hotels.id),
+  roomCategoryId: integer("room_category_id").references(() => roomCategories.id),
   teamName: varchar("team_name", { length: 255 }),
   checkInDate: timestamp("check_in_date"),
   checkOutDate: timestamp("check_out_date"),
@@ -227,6 +266,8 @@ export const insertTeamSchema = createInsertSchema(teams);
 export const insertEventSchema = createInsertSchema(events);
 export const insertHotelClusterSchema = createInsertSchema(hotelClusters);
 export const insertHotelSchema = createInsertSchema(hotels);
+export const insertRoomCategorySchema = createInsertSchema(roomCategories);
+export const insertBookingRequestSchema = createInsertSchema(bookingRequests);
 export const insertPlayerBookingSchema = createInsertSchema(playerBookings);
 
 // Types
@@ -240,5 +281,9 @@ export type HotelCluster = typeof hotelClusters.$inferSelect;
 export type InsertHotelCluster = z.infer<typeof insertHotelClusterSchema>;
 export type Hotel = typeof hotels.$inferSelect;
 export type InsertHotel = z.infer<typeof insertHotelSchema>;
+export type RoomCategory = typeof roomCategories.$inferSelect;
+export type InsertRoomCategory = z.infer<typeof insertRoomCategorySchema>;
+export type BookingRequest = typeof bookingRequests.$inferSelect;
+export type InsertBookingRequest = z.infer<typeof insertBookingRequestSchema>;
 export type PlayerBooking = typeof playerBookings.$inferSelect;
 export type InsertPlayerBooking = z.infer<typeof insertPlayerBookingSchema>;

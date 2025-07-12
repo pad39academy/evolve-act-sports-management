@@ -31,9 +31,14 @@ export default function Dashboard() {
       const userData = await getCurrentUser();
       setUser(userData);
       
-      // Redirect players to their specific dashboard
+      // Redirect users to their specific dashboard
       if (userData.role === 'player') {
         setLocation('/player-dashboard');
+        return;
+      }
+      
+      if (userData.role === 'hotel_manager') {
+        setLocation('/hotel-manager-dashboard');
         return;
       }
     } catch (error) {

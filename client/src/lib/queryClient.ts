@@ -17,22 +17,17 @@ export async function apiRequest(
     let errorMessage = res.statusText;
     try {
       const text = await res.text();
-      console.log('Raw error response:', text);
       if (text) {
         try {
           const json = JSON.parse(text);
-          console.log('Parsed JSON:', json);
           errorMessage = json.message || json.error || text;
         } catch (parseError) {
-          console.log('JSON parse failed, using text as-is');
           errorMessage = text;
         }
       }
     } catch (readError) {
-      console.log('Failed to read response, using status text');
       // errorMessage already set to res.statusText
     }
-    console.log('Final error message:', errorMessage);
     throw new Error(errorMessage);
   }
 
@@ -57,22 +52,17 @@ export const getQueryFn: <T>(options: {
       let errorMessage = res.statusText;
       try {
         const text = await res.text();
-        console.log('Query error response:', text);
         if (text) {
           try {
             const json = JSON.parse(text);
-            console.log('Query parsed JSON:', json);
             errorMessage = json.message || json.error || text;
           } catch (parseError) {
-            console.log('Query JSON parse failed, using text as-is');
             errorMessage = text;
           }
         }
       } catch (readError) {
-        console.log('Query failed to read response, using status text');
         // errorMessage already set to res.statusText
       }
-      console.log('Query final error message:', errorMessage);
       throw new Error(errorMessage);
     }
 
