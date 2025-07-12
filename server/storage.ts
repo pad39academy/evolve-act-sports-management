@@ -72,6 +72,11 @@ export interface IStorage {
   approveHotel(hotelId: number, approvedBy: number): Promise<Hotel>;
   rejectHotel(hotelId: number, rejectionReason: string): Promise<void>;
   
+  // Admin tournament approval operations
+  getPendingTournaments(): Promise<Tournament[]>;
+  approveTournament(tournamentId: number, approvedBy: number): Promise<Tournament>;
+  rejectTournament(tournamentId: number, rejectionReason: string): Promise<void>;
+  
   // Event Manager operations
   // Tournament and match management
   getTournamentsByManager(managerId: number): Promise<Tournament[]>;
@@ -372,6 +377,33 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(hotels.id, hotelId));
+  }
+
+  // Admin tournament approval operations
+  async getPendingTournaments(): Promise<Tournament[]> {
+    return await db.select().from(tournaments).where(eq(tournaments.approved, "false"));
+  }
+
+  async approveTournament(tournamentId: number, approvedBy: number): Promise<Tournament> {
+    const [approvedTournament] = await db
+      .update(tournaments)
+      .set({ 
+        approved: "true",
+        updatedAt: new Date()
+      })
+      .where(eq(tournaments.id, tournamentId))
+      .returning();
+    return approvedTournament;
+  }
+
+  async rejectTournament(tournamentId: number, rejectionReason: string): Promise<void> {
+    await db
+      .update(tournaments)
+      .set({ 
+        approved: "rejected",
+        updatedAt: new Date()
+      })
+      .where(eq(tournaments.id, tournamentId));
   }
 
   // Event Manager operations

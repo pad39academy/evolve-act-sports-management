@@ -594,6 +594,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin tournament approval routes
+  app.get('/api/admin/tournaments/pending', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin only' });
+      }
+
+      const pendingTournaments = await storage.getPendingTournaments();
+      res.json(pendingTournaments);
+    } catch (error) {
+      console.error('Error fetching pending tournaments:', error);
+      res.status(500).json({ message: 'Failed to fetch pending tournaments' });
+    }
+  });
+
+  app.patch('/api/admin/tournaments/:id/approve', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin only' });
+      }
+
+      const tournamentId = parseInt(req.params.id);
+      const approvedTournament = await storage.approveTournament(tournamentId, userId);
+      res.json(approvedTournament);
+    } catch (error) {
+      console.error('Error approving tournament:', error);
+      res.status(500).json({ message: 'Failed to approve tournament' });
+    }
+  });
+
+  app.patch('/api/admin/tournaments/:id/reject', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin only' });
+      }
+
+      const tournamentId = parseInt(req.params.id);
+      const { reason } = req.body;
+      await storage.rejectTournament(tournamentId, reason);
+      res.json({ message: 'Tournament rejected successfully' });
+    } catch (error) {
+      console.error('Error rejecting tournament:', error);
+      res.status(500).json({ message: 'Failed to reject tournament' });
+    }
+  });
+
   // Event Manager routes
   // Tournament management
   app.get('/api/event-manager/tournaments', requireAuth, async (req: any, res) => {

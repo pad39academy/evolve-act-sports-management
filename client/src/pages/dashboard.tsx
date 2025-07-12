@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, User, Settings, Calendar, Users, Hotel, Check, X } from "lucide-react";
+import { LogOut, User, Settings, Calendar, Users, Hotel, Check, X, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,13 @@ export default function Dashboard() {
   const { data: pendingHotels, isLoading: hotelsLoading } = useQuery({
     queryKey: ['/api/admin/hotels/pending'],
     enabled: !!(user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role)),
+    retry: false,
+  });
+
+  // Query for pending tournaments (only for admins)
+  const { data: pendingTournaments, isLoading: tournamentsLoading } = useQuery({
+    queryKey: ['/api/admin/tournaments/pending'],
+    enabled: !!(user && ['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)),
     retry: false,
   });
 
@@ -75,6 +82,53 @@ export default function Dashboard() {
       toast({
         title: "Error",
         description: error.message || "Failed to reject hotel",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Tournament approval mutation
+  const approveTournamentMutation = useMutation({
+    mutationFn: async (tournamentId: number) => {
+      return await apiRequest(`/api/admin/tournaments/${tournamentId}/approve`, {
+        method: 'PATCH',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Tournament Approved",
+        description: "The tournament has been approved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tournaments/pending'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve tournament",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Tournament rejection mutation
+  const rejectTournamentMutation = useMutation({
+    mutationFn: async ({ tournamentId, reason }: { tournamentId: number; reason: string }) => {
+      return await apiRequest(`/api/admin/tournaments/${tournamentId}/reject`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Tournament Rejected",
+        description: "The tournament has been rejected",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tournaments/pending'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject tournament",
         variant: "destructive",
       });
     },
@@ -166,7 +220,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleRejectTournament = (tournamentId: number) => {
+    const reason = prompt("Enter rejection reason:");
+    if (reason) {
+      rejectTournamentMutation.mutate({ tournamentId, reason });
+    }
+  };
+
   const canApproveHotels = user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role);
+  const canApproveTournaments = user && ['admin', 'lead_admin', 'state_admin_manager'].includes(user.role);
 
   if (isLoading) {
     return (
@@ -343,6 +405,75 @@ export default function Dashboard() {
                   <p className="text-gray-600">No pending hotel approvals</p>
                   <p className="text-sm text-gray-500 mt-2">
                     All hotels are currently approved
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tournament Approval Section (for admins only) */}
+        {canApproveTournaments && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Trophy className="h-5 w-5" />
+                <span>Tournament Approvals</span>
+                {pendingTournaments && pendingTournaments.length > 0 && (
+                  <Badge variant="secondary">{pendingTournaments.length}</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tournamentsLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-gray-600">Loading pending tournaments...</p>
+                </div>
+              ) : pendingTournaments && pendingTournaments.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingTournaments.map((tournament: any) => (
+                    <div key={tournament.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{tournament.name}</h4>
+                        <p className="text-sm text-gray-600">Locations: {tournament.locations}</p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(tournament.startDate).toLocaleDateString()} - {new Date(tournament.endDate).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Event Manager: {tournament.eventManagerName}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => approveTournamentMutation.mutate(tournament.id)}
+                          disabled={approveTournamentMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <Check className="h-4 w-4" />
+                          <span>Approve</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRejectTournament(tournament.id)}
+                          disabled={rejectTournamentMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <X className="h-4 w-4" />
+                          <span>Reject</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No pending tournament approvals</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    All tournaments are currently approved
                   </p>
                 </div>
               )}
