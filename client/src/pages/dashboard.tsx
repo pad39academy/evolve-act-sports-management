@@ -29,7 +29,7 @@ export default function Dashboard() {
   // Query for pending hotels (only for admins and event managers)
   const { data: pendingHotels, isLoading: hotelsLoading } = useQuery({
     queryKey: ['/api/admin/hotels/pending'],
-    enabled: user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role),
+    enabled: !!(user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role)),
     retry: false,
   });
 
