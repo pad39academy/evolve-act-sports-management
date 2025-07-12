@@ -56,16 +56,22 @@ export default function Register() {
     setIsLoading(true);
     try {
       const result = await registerUser(data);
+      console.log("Registration result:", result);
       if (result.success) {
         toast({
           title: "Registration Successful",
           description: "Please check your email for the OTP verification code.",
         });
-        setLocation(`/verify-otp?userId=${result.user.id}`);
+        console.log("Redirecting to OTP verification with userId:", result.user.id);
+        // Small delay to allow toast to show before redirect
+        setTimeout(() => {
+          setLocation(`/verify-otp?userId=${result.user.id}`);
+        }, 1000);
       } else {
         throw new Error(result.message);
       }
     } catch (error: any) {
+      console.error("Registration error:", error);
       toast({
         title: "Registration Failed",
         description: error.message || "An error occurred during registration.",
