@@ -20,18 +20,13 @@ export default function OTPVerification() {
   const urlParams = new URLSearchParams(window.location.search);
   const userId = urlParams.get("userId");
 
-  console.log("OTP Verification page loaded with location:", location);
-  console.log("Window location search:", window.location.search);
-  console.log("Full window location:", window.location.href);
-  console.log("Extracted userId:", userId);
+
 
   useEffect(() => {
     if (!userId) {
-      console.log("No userId found, redirecting to register");
       setLocation("/register");
       return;
     }
-    console.log("OTP verification initialized for userId:", userId);
 
     const countdown = setInterval(() => {
       setTimer((prev) => {
@@ -193,24 +188,7 @@ export default function OTPVerification() {
                 </div>
               </div>
 
-              {/* Developer Mode Console */}
-              <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
-                <div className="flex items-center mb-2">
-                  <span className="text-white">Developer Console</span>
-                </div>
-                <div className="text-yellow-400 mb-2">
-                  📧 Check server logs for the actual {activeTab === "email" ? "Email" : "SMS"} OTP
-                </div>
-                <div className="text-gray-400 text-xs">
-                  // User ID: {userId}
-                </div>
-                <div className="text-gray-400 text-xs">
-                  // OTP Type: {activeTab === "email" ? "Email" : "SMS"}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">
-                  // TODO: Integrate with {activeTab === "email" ? "email service" : "Twilio API"} for production
-                </div>
-              </div>
+
 
               {/* Timer */}
               <div className="text-center">
