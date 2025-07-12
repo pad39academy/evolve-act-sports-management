@@ -212,6 +212,11 @@ export default function Dashboard() {
         setLocation('/event-manager-dashboard');
         return;
       }
+      
+      if (userData.role === 'team_manager') {
+        setLocation('/team-manager-dashboard');
+        return;
+      }
     } catch (error) {
       toast({
         title: "Authentication Error",

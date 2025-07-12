@@ -1,4 +1,4 @@
-import { pgTable, text, serial, varchar, timestamp, jsonb, index, integer, boolean, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, varchar, timestamp, jsonb, index, integer, boolean, decimal, date } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -303,6 +303,60 @@ export const playerBookings = pgTable("player_bookings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Team management tables
+export const teamRequests = pgTable("team_requests", {
+  id: serial("id").primaryKey(),
+  teamManagerId: integer("team_manager_id").references(() => users.id),
+  teamName: varchar("team_name", { length: 255 }).notNull(),
+  sport: varchar("sport", { length: 100 }).notNull(),
+  tournamentId: integer("tournament_id").references(() => tournaments.id),
+  requestAccommodation: boolean("request_accommodation").default(false),
+  specialRequests: text("special_requests"),
+  status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
+  rejectionReason: text("rejection_reason"),
+  approvedBy: integer("approved_by").references(() => users.id), // Event Manager or Admin
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const teamMembers = pgTable("team_members", {
+  id: serial("id").primaryKey(),
+  teamRequestId: integer("team_request_id").references(() => teamRequests.id),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phoneCountryCode: varchar("phone_country_code", { length: 10 }).default("+91"),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  alternateContact: varchar("alternate_contact", { length: 50 }),
+  dateOfBirth: date("date_of_birth"),
+  gender: varchar("gender", { length: 10 }).notNull(),
+  city: varchar("city", { length: 100 }),
+  address: text("address"),
+  position: varchar("position", { length: 100 }),
+  sport: varchar("sport", { length: 100 }).notNull(),
+  userId: integer("user_id").references(() => users.id), // If user account exists
+  accountCreated: boolean("account_created").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const accountCreationRequests = pgTable("account_creation_requests", {
+  id: serial("id").primaryKey(),
+  teamMemberId: integer("team_member_id").references(() => teamMembers.id),
+  email: varchar("email", { length: 255 }).notNull(),
+  phoneCountryCode: varchar("phone_country_code", { length: 10 }).default("+91"),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  notificationsSent: boolean("notifications_sent").default(false),
+  emailSent: boolean("email_sent").default(false),
+  smsSent: boolean("sms_sent").default(false),
+  whatsappSent: boolean("whatsapp_sent").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertCitySchema = createInsertSchema(cities);
 export const insertTournamentSchema = createInsertSchema(tournaments);
@@ -314,6 +368,9 @@ export const insertHotelSchema = createInsertSchema(hotels);
 export const insertRoomCategorySchema = createInsertSchema(roomCategories);
 export const insertBookingRequestSchema = createInsertSchema(bookingRequests);
 export const insertPlayerBookingSchema = createInsertSchema(playerBookings);
+export const insertTeamRequestSchema = createInsertSchema(teamRequests);
+export const insertTeamMemberSchema = createInsertSchema(teamMembers);
+export const insertAccountCreationRequestSchema = createInsertSchema(accountCreationRequests);
 
 // Types
 export type City = typeof cities.$inferSelect;
@@ -336,3 +393,9 @@ export type BookingRequest = typeof bookingRequests.$inferSelect;
 export type InsertBookingRequest = z.infer<typeof insertBookingRequestSchema>;
 export type PlayerBooking = typeof playerBookings.$inferSelect;
 export type InsertPlayerBooking = z.infer<typeof insertPlayerBookingSchema>;
+export type TeamRequest = typeof teamRequests.$inferSelect;
+export type InsertTeamRequest = z.infer<typeof insertTeamRequestSchema>;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
+export type AccountCreationRequest = typeof accountCreationRequests.$inferSelect;
+export type InsertAccountCreationRequest = z.infer<typeof insertAccountCreationRequestSchema>;

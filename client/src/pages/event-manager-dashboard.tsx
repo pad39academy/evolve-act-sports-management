@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin, Users, Trophy, Building, Plus, Edit, Trash2, Link, X, LogOut } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Trophy, Building, Plus, Edit, Trash2, Link, X, LogOut, Check, Hotel } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -72,6 +72,22 @@ interface Hotel {
   contactInfo?: string;
   approved: string;
   autoApproveBookings: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TeamRequest {
+  id: number;
+  teamManagerId: number;
+  teamName: string;
+  sport: string;
+  tournamentId: number;
+  requestAccommodation: boolean;
+  specialRequests?: string;
+  status: string;
+  rejectionReason?: string;
+  approvedBy?: number;
+  approvedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -169,6 +185,12 @@ export default function EventManagerDashboard() {
   // Fetch approved cities
   const { data: cities } = useQuery({
     queryKey: ['/api/cities'],
+    retry: false,
+  });
+
+  // Fetch pending team requests
+  const { data: pendingTeamRequests } = useQuery({
+    queryKey: ['/api/team-approvals/pending'],
     retry: false,
   });
 
@@ -376,6 +398,38 @@ export default function EventManagerDashboard() {
     },
     onError: (error: Error) => {
       toast({ title: 'Error assigning hotel', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Team approval mutation
+  const approveTeamMutation = useMutation({
+    mutationFn: (teamRequestId: number) => 
+      apiRequest(`/api/team-approvals/${teamRequestId}/approve`, {
+        method: 'PATCH',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/team-approvals/pending'] });
+      toast({ title: 'Team request approved successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error approving team request', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Team rejection mutation
+  const rejectTeamMutation = useMutation({
+    mutationFn: ({ teamRequestId, reason }: { teamRequestId: number; reason: string }) => 
+      apiRequest(`/api/team-approvals/${teamRequestId}/reject`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/team-approvals/pending'] });
+      toast({ title: 'Team request rejected' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error rejecting team request', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -635,11 +689,12 @@ export default function EventManagerDashboard() {
       {/* Main Content */}
       <div className="container mx-auto p-6">
         <Tabs defaultValue="tournaments" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="clusters">Hotel Clusters</TabsTrigger>
           <TabsTrigger value="hotels">Assign Hotels</TabsTrigger>
+          <TabsTrigger value="team-approvals">Team Approvals</TabsTrigger>
         </TabsList>
         
         <TabsContent value="tournaments" className="space-y-4">
@@ -842,6 +897,88 @@ export default function EventManagerDashboard() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="team-approvals" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Team Approvals</h2>
+            <Badge variant="outline">
+              {pendingTeamRequests?.length || 0} pending
+            </Badge>
+          </div>
+          
+          <div className="grid gap-4">
+            {pendingTeamRequests?.map((request: TeamRequest) => (
+              <Card key={request.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{request.teamName}</CardTitle>
+                      <CardDescription>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="flex items-center gap-1">
+                            <Trophy className="w-4 h-4" />
+                            {request.sport}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {tournaments?.find(t => t.id === request.tournamentId)?.name || 'Unknown Tournament'}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Hotel className="w-4 h-4" />
+                            {request.requestAccommodation ? 'Accommodation requested' : 'No accommodation needed'}
+                          </span>
+                        </div>
+                        {request.specialRequests && (
+                          <p className="mt-2 text-sm text-gray-600">
+                            <strong>Special Requests:</strong> {request.specialRequests}
+                          </p>
+                        )}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={request.status === 'approved' ? 'default' : request.status === 'rejected' ? 'destructive' : 'secondary'}>
+                        {request.status}
+                      </Badge>
+                      {request.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => approveTeamMutation.mutate(request.id)}
+                            disabled={approveTeamMutation.isPending}
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              const reason = prompt("Enter rejection reason:");
+                              if (reason) {
+                                rejectTeamMutation.mutate({ teamRequestId: request.id, reason });
+                              }
+                            }}
+                            disabled={rejectTeamMutation.isPending}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+          
+          {(!pendingTeamRequests || pendingTeamRequests.length === 0) && (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No pending team requests</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

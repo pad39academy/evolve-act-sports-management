@@ -11,6 +11,9 @@ import {
   roomCategories,
   bookingRequests,
   playerBookings,
+  teamRequests,
+  teamMembers,
+  accountCreationRequests,
   type User,
   type InsertUser,
   type OtpVerification,
@@ -35,6 +38,12 @@ import {
   type InsertBookingRequest,
   type PlayerBooking,
   type InsertPlayerBooking,
+  type TeamRequest,
+  type InsertTeamRequest,
+  type TeamMember,
+  type InsertTeamMember,
+  type AccountCreationRequest,
+  type InsertAccountCreationRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -121,6 +130,29 @@ export interface IStorage {
   getPendingBookingRequests(hotelId: number): Promise<BookingRequest[]>;
   updateBookingRequestStatus(id: number, status: string, approvedBy?: number, rejectionReason?: string): Promise<BookingRequest>;
   getBookingRequestWithDetails(id: number): Promise<BookingRequest | undefined>;
+  
+  // Team Manager operations
+  getTeamRequestsByManager(managerId: number): Promise<TeamRequest[]>;
+  createTeamRequest(teamRequest: InsertTeamRequest): Promise<TeamRequest>;
+  updateTeamRequest(id: number, teamRequest: Partial<InsertTeamRequest>): Promise<TeamRequest>;
+  deleteTeamRequest(id: number): Promise<void>;
+  
+  // Team member operations
+  getTeamMembersByRequest(teamRequestId: number): Promise<TeamMember[]>;
+  createTeamMember(teamMember: InsertTeamMember): Promise<TeamMember>;
+  updateTeamMember(id: number, teamMember: Partial<InsertTeamMember>): Promise<TeamMember>;
+  deleteTeamMember(id: number): Promise<void>;
+  updateUserProfile(userId: number, memberData: Partial<InsertUser>): Promise<User>;
+  
+  // Team approval operations (Event Manager and Admin)
+  getPendingTeamRequests(): Promise<TeamRequest[]>;
+  approveTeamRequest(teamRequestId: number, approvedBy: number): Promise<TeamRequest>;
+  rejectTeamRequest(teamRequestId: number, rejectionReason: string): Promise<void>;
+  
+  // Account creation operations
+  createAccountCreationRequest(request: InsertAccountCreationRequest): Promise<AccountCreationRequest>;
+  updateAccountCreationRequest(id: number, request: Partial<InsertAccountCreationRequest>): Promise<AccountCreationRequest>;
+  getAccountCreationRequestsByTeamMember(teamMemberId: number): Promise<AccountCreationRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -541,6 +573,110 @@ export class DatabaseStorage implements IStorage {
       .where(eq(hotels.id, hotelId))
       .returning();
     return updatedHotel;
+  }
+
+  // Team Manager operations
+  async getTeamRequestsByManager(managerId: number): Promise<TeamRequest[]> {
+    return await db.select().from(teamRequests).where(eq(teamRequests.teamManagerId, managerId));
+  }
+
+  async createTeamRequest(teamRequest: InsertTeamRequest): Promise<TeamRequest> {
+    const [createdRequest] = await db.insert(teamRequests).values(teamRequest).returning();
+    return createdRequest;
+  }
+
+  async updateTeamRequest(id: number, teamRequest: Partial<InsertTeamRequest>): Promise<TeamRequest> {
+    const [updatedRequest] = await db
+      .update(teamRequests)
+      .set({ ...teamRequest, updatedAt: new Date() })
+      .where(eq(teamRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async deleteTeamRequest(id: number): Promise<void> {
+    await db.delete(teamRequests).where(eq(teamRequests.id, id));
+  }
+
+  // Team member operations
+  async getTeamMembersByRequest(teamRequestId: number): Promise<TeamMember[]> {
+    return await db.select().from(teamMembers).where(eq(teamMembers.teamRequestId, teamRequestId));
+  }
+
+  async createTeamMember(teamMember: InsertTeamMember): Promise<TeamMember> {
+    const [createdMember] = await db.insert(teamMembers).values(teamMember).returning();
+    return createdMember;
+  }
+
+  async updateTeamMember(id: number, teamMember: Partial<InsertTeamMember>): Promise<TeamMember> {
+    const [updatedMember] = await db
+      .update(teamMembers)
+      .set({ ...teamMember, updatedAt: new Date() })
+      .where(eq(teamMembers.id, id))
+      .returning();
+    return updatedMember;
+  }
+
+  async deleteTeamMember(id: number): Promise<void> {
+    await db.delete(teamMembers).where(eq(teamMembers.id, id));
+  }
+
+  async updateUserProfile(userId: number, memberData: Partial<InsertUser>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ ...memberData, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  // Team approval operations (Event Manager and Admin)
+  async getPendingTeamRequests(): Promise<TeamRequest[]> {
+    return await db.select().from(teamRequests).where(eq(teamRequests.status, 'pending'));
+  }
+
+  async approveTeamRequest(teamRequestId: number, approvedBy: number): Promise<TeamRequest> {
+    const [approvedRequest] = await db
+      .update(teamRequests)
+      .set({ 
+        status: 'approved', 
+        approvedBy, 
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(teamRequests.id, teamRequestId))
+      .returning();
+    return approvedRequest;
+  }
+
+  async rejectTeamRequest(teamRequestId: number, rejectionReason: string): Promise<void> {
+    await db
+      .update(teamRequests)
+      .set({ 
+        status: 'rejected', 
+        rejectionReason,
+        updatedAt: new Date()
+      })
+      .where(eq(teamRequests.id, teamRequestId));
+  }
+
+  // Account creation operations
+  async createAccountCreationRequest(request: InsertAccountCreationRequest): Promise<AccountCreationRequest> {
+    const [createdRequest] = await db.insert(accountCreationRequests).values(request).returning();
+    return createdRequest;
+  }
+
+  async updateAccountCreationRequest(id: number, request: Partial<InsertAccountCreationRequest>): Promise<AccountCreationRequest> {
+    const [updatedRequest] = await db
+      .update(accountCreationRequests)
+      .set({ ...request, updatedAt: new Date() })
+      .where(eq(accountCreationRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async getAccountCreationRequestsByTeamMember(teamMemberId: number): Promise<AccountCreationRequest[]> {
+    return await db.select().from(accountCreationRequests).where(eq(accountCreationRequests.teamMemberId, teamMemberId));
   }
 }
 

@@ -1007,6 +1007,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Team Manager routes
+  app.get('/api/team-manager/team-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const teamRequests = await storage.getTeamRequestsByManager(userId);
+      res.json(teamRequests);
+    } catch (error) {
+      console.error("Error fetching team requests:", error);
+      res.status(500).json({ message: "Failed to fetch team requests" });
+    }
+  });
+
+  app.post('/api/team-manager/team-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { teamName, sport, tournamentId, requestAccommodation, specialRequests, members } = req.body;
+      
+      // Create team request
+      const teamRequest = await storage.createTeamRequest({
+        teamManagerId: userId,
+        teamName,
+        sport,
+        tournamentId,
+        requestAccommodation,
+        specialRequests
+      });
+      
+      // Process team members
+      const createdMembers = [];
+      for (const member of members) {
+        // Check if user exists with this email
+        const existingUser = await storage.getUserByEmail(member.email);
+        
+        const teamMember = await storage.createTeamMember({
+          teamRequestId: teamRequest.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          email: member.email,
+          phoneCountryCode: member.phoneCountryCode,
+          phoneNumber: member.phoneNumber,
+          alternateContact: member.alternateContact,
+          dateOfBirth: member.dateOfBirth,
+          gender: member.gender,
+          city: member.city,
+          address: member.address,
+          position: member.position,
+          sport: member.sport,
+          userId: existingUser?.id,
+          accountCreated: !!existingUser
+        });
+        
+        createdMembers.push(teamMember);
+        
+        // If user exists, update their profile with latest info
+        if (existingUser) {
+          await storage.updateUserProfile(existingUser.id, {
+            firstName: member.firstName,
+            lastName: member.lastName,
+            mobileCountryCode: member.phoneCountryCode,
+            mobileNumber: member.phoneNumber,
+            whatsappCountryCode: member.phoneCountryCode,
+            whatsappNumber: member.phoneNumber
+          });
+        } else {
+          // Create account creation request for new users
+          await storage.createAccountCreationRequest({
+            teamMemberId: teamMember.id,
+            email: member.email,
+            phoneCountryCode: member.phoneCountryCode,
+            phoneNumber: member.phoneNumber,
+            firstName: member.firstName,
+            lastName: member.lastName
+          });
+        }
+      }
+      
+      res.json({ teamRequest, members: createdMembers });
+    } catch (error) {
+      console.error("Error creating team request:", error);
+      res.status(500).json({ message: "Failed to create team request" });
+    }
+  });
+
+  app.get('/api/team-manager/team-requests/:id/members', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const members = await storage.getTeamMembersByRequest(parseInt(req.params.id));
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      res.status(500).json({ message: "Failed to fetch team members" });
+    }
+  });
+
+  // Event Manager and Admin routes for team approval
+  app.get('/api/team-approvals/pending', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const pendingRequests = await storage.getPendingTeamRequests();
+      res.json(pendingRequests);
+    } catch (error) {
+      console.error("Error fetching pending team requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending team requests" });
+    }
+  });
+
+  app.post('/api/team-approvals/:id/approve', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const approvedRequest = await storage.approveTeamRequest(parseInt(req.params.id), userId);
+      res.json(approvedRequest);
+    } catch (error) {
+      console.error("Error approving team request:", error);
+      res.status(500).json({ message: "Failed to approve team request" });
+    }
+  });
+
+  app.post('/api/team-approvals/:id/reject', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { rejectionReason } = req.body;
+      await storage.rejectTeamRequest(parseInt(req.params.id), rejectionReason);
+      res.json({ message: "Team request rejected successfully" });
+    } catch (error) {
+      console.error("Error rejecting team request:", error);
+      res.status(500).json({ message: "Failed to reject team request" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
