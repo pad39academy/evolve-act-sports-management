@@ -42,7 +42,7 @@ export default function Login() {
     } catch (error: any) {
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid email or password.",
+        description: error.message || "The given username or password is not matching with our details.",
         variant: "destructive",
       });
     } finally {

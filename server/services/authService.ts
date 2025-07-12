@@ -63,12 +63,12 @@ export class AuthService {
     try {
       const user = await storage.getUserByEmail(loginData.email);
       if (!user) {
-        throw new Error("Invalid email or password");
+        throw new Error("The given username or password is not matching with our details");
       }
 
       const isValidPassword = await this.comparePassword(loginData.password, user.password);
       if (!isValidPassword) {
-        throw new Error("Invalid email or password");
+        throw new Error("The given username or password is not matching with our details");
       }
 
       if (user.isVerified !== "true") {
@@ -131,7 +131,7 @@ export class AuthService {
       }
 
       if (!user) {
-        throw new Error("No account found with this email or mobile number");
+        throw new Error("The given username or password is not matching with our details");
       }
 
       // Generate OTP for password reset

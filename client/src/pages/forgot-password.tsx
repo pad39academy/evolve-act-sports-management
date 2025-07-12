@@ -46,7 +46,7 @@ export default function ForgotPassword() {
       console.error("Forgot password error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to send reset code. Please try again.",
+        description: error.message || "The given username or password is not matching with our details.",
         variant: "destructive",
       });
     },
