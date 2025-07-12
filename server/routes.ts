@@ -620,7 +620,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const tournament = await storage.createTournament(req.body);
+      // Convert date strings to Date objects
+      const tournamentData = {
+        ...req.body,
+        startDate: new Date(req.body.startDate),
+        endDate: new Date(req.body.endDate),
+        createdBy: user.id
+      };
+      
+      const tournament = await storage.createTournament(tournamentData);
       res.json(tournament);
     } catch (error) {
       console.error("Error creating tournament:", error);
@@ -628,14 +636,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/event-manager/tournaments/:id', requireAuth, async (req, res) => {
+  app.put('/api/event-manager/tournaments/:id', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const tournament = await storage.updateTournament(parseInt(req.params.id), req.body);
+      // Convert date strings to Date objects if they exist
+      const tournamentData = {
+        ...req.body,
+        ...(req.body.startDate && { startDate: new Date(req.body.startDate) }),
+        ...(req.body.endDate && { endDate: new Date(req.body.endDate) })
+      };
+      
+      const tournament = await storage.updateTournament(parseInt(req.params.id), tournamentData);
       res.json(tournament);
     } catch (error) {
       console.error("Error updating tournament:", error);
@@ -643,10 +659,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/event-manager/tournaments/:id', requireAuth, async (req, res) => {
+  app.delete('/api/event-manager/tournaments/:id', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -698,7 +715,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const matchData = { ...req.body, createdBy: user.id };
+      // Convert date and time strings to proper format
+      const matchData = { 
+        ...req.body, 
+        createdBy: user.id,
+        matchDate: new Date(req.body.matchDate),
+        clusterId: req.body.clusterId ? parseInt(req.body.clusterId) : null
+      };
       const match = await storage.createMatch(matchData);
       res.json(match);
     } catch (error) {
@@ -707,14 +730,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/event-manager/matches/:id', requireAuth, async (req, res) => {
+  app.put('/api/event-manager/matches/:id', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const match = await storage.updateMatch(parseInt(req.params.id), req.body);
+      // Convert date and time strings to proper format if they exist
+      const matchData = {
+        ...req.body,
+        ...(req.body.matchDate && { matchDate: new Date(req.body.matchDate) }),
+        ...(req.body.clusterId && { clusterId: parseInt(req.body.clusterId) })
+      };
+      
+      const match = await storage.updateMatch(parseInt(req.params.id), matchData);
       res.json(match);
     } catch (error) {
       console.error("Error updating match:", error);
@@ -722,10 +753,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/event-manager/matches/:id', requireAuth, async (req, res) => {
+  app.delete('/api/event-manager/matches/:id', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -754,10 +786,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/event-manager/all-clusters', requireAuth, async (req, res) => {
+  app.get('/api/event-manager/all-clusters', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -786,10 +819,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/event-manager/clusters/:id', requireAuth, async (req, res) => {
+  app.put('/api/event-manager/clusters/:id', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -801,10 +835,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/event-manager/clusters/:id', requireAuth, async (req, res) => {
+  app.delete('/api/event-manager/clusters/:id', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -817,10 +852,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assign hotel to cluster
-  app.put('/api/event-manager/hotels/:hotelId/assign-cluster', requireAuth, async (req, res) => {
+  app.put('/api/event-manager/hotels/:hotelId/assign-cluster', requireAuth, async (req: any, res) => {
     try {
-      const user = (req as any).user;
-      if (!['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       
