@@ -20,6 +20,7 @@ interface Tournament {
   startDate: string;
   endDate: string;
   approved: string;
+  cityIds?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -218,12 +219,21 @@ export default function EventManagerDashboard() {
   });
 
   const updateTournamentMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => 
-      apiRequest(`/api/event-manager/tournaments/${id}`, {
+    mutationFn: ({ id, data }: { id: number; data: any }) => {
+      // Convert selectedCities to cityIds and prepare locations for update
+      const cityIds = JSON.stringify(data.selectedCities || []);
+      const locations = JSON.stringify(data.cityNames || []);
+      
+      return apiRequest(`/api/event-manager/tournaments/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }),
+        body: JSON.stringify({
+          ...data,
+          cityIds,
+          locations
+        }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/event-manager/tournaments'] });
       toast({ title: 'Tournament updated successfully' });
@@ -453,12 +463,44 @@ export default function EventManagerDashboard() {
 
   const handleEditTournament = (tournament: Tournament) => {
     setSelectedTournament(tournament);
+    
+    // Parse existing cityIds and locations if they exist
+    let selectedCities: number[] = [];
+    let cityNames: string[] = [];
+    
+    try {
+      // Try to parse cityIds from the tournament (for new tournaments)
+      if (tournament.cityIds) {
+        selectedCities = JSON.parse(tournament.cityIds);
+      }
+      // Try to parse locations array (for new tournaments)
+      if (tournament.locations && tournament.locations.startsWith('[')) {
+        cityNames = JSON.parse(tournament.locations);
+      } else if (tournament.locations) {
+        // For old tournaments, split the locations string
+        cityNames = tournament.locations.split(',').map(s => s.trim());
+        // Try to match city names to city IDs
+        if (cities) {
+          selectedCities = cityNames.map(name => {
+            const city = cities.find(c => c.name === name);
+            return city ? city.id : null;
+          }).filter(id => id !== null) as number[];
+        }
+      }
+    } catch (e) {
+      // If parsing fails, fall back to empty arrays
+      selectedCities = [];
+      cityNames = [];
+    }
+    
     setTournamentForm({
       name: tournament.name,
       locations: tournament.locations,
       startDate: tournament.startDate.split('T')[0],
       endDate: tournament.endDate.split('T')[0],
-      approved: tournament.approved
+      approved: tournament.approved,
+      selectedCities: selectedCities,
+      cityNames: cityNames
     });
     setShowTournamentDialog(true);
   };
