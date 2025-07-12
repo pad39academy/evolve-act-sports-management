@@ -9,6 +9,8 @@ import Register from "@/pages/register";
 import Login from "@/pages/login";
 import OTPVerification from "@/pages/otp-verification";
 import Dashboard from "@/pages/dashboard";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 function Router() {
   return (
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/verify-otp" component={OTPVerification} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route component={NotFound} />
     </Switch>
   );

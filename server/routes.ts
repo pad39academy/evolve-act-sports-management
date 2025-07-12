@@ -9,9 +9,13 @@ import {
   registerSchema, 
   loginSchema, 
   otpSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   type RegisterData,
   type LoginData,
-  type OtpData 
+  type OtpData,
+  type ForgotPasswordData,
+  type ResetPasswordData
 } from "@shared/schema";
 
 // Extend session data interface
@@ -165,6 +169,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Resend OTP error:", error);
       res.status(400).json({ 
         message: error.message || "Failed to resend OTP",
+        success: false 
+      });
+    }
+  });
+
+  // Forgot password endpoint
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const validatedData = forgotPasswordSchema.parse(req.body);
+      const { identifier } = validatedData;
+      
+      const result = await authService.forgotPassword(identifier);
+      
+      // Store user ID in session for password reset
+      req.session.resetUserId = result.userId;
+      
+      res.json({
+        message: "Reset code sent to your email and mobile number",
+        userId: result.userId,
+        success: true,
+      });
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      res.status(400).json({ 
+        message: error.message || "Failed to send reset code",
+        success: false 
+      });
+    }
+  });
+
+  // Reset password endpoint
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const validatedData = resetPasswordSchema.parse(req.body);
+      const { otp, newPassword, userId } = validatedData;
+      
+      const success = await authService.resetPassword(parseInt(userId), otp, newPassword);
+      
+      if (success) {
+        // Clear the reset session
+        delete req.session.resetUserId;
+        
+        res.json({
+          message: "Password reset successfully",
+          success: true,
+        });
+      } else {
+        res.status(400).json({
+          message: "Password reset failed",
+          success: false,
+        });
+      }
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      res.status(400).json({ 
+        message: error.message || "Password reset failed",
         success: false 
       });
     }

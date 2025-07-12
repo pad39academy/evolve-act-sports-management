@@ -108,6 +108,72 @@ export class AuthService {
       return false;
     }
   }
+
+  async forgotPassword(identifier: string): Promise<{ userId: number; success: boolean }> {
+    try {
+      let user;
+      
+      // Check if identifier is email or mobile number
+      if (identifier.includes('@')) {
+        // It's an email
+        user = await storage.getUserByEmail(identifier);
+      } else {
+        // It's a mobile number - extract country code and number
+        const mobileRegex = /^(\+\d{1,4})(\d+)$/;
+        const match = identifier.match(mobileRegex);
+        
+        if (!match) {
+          throw new Error("Invalid mobile number format. Please include country code (e.g., +91)");
+        }
+        
+        const [, countryCode, number] = match;
+        user = await storage.getUserByMobile(countryCode, number);
+      }
+
+      if (!user) {
+        throw new Error("No account found with this email or mobile number");
+      }
+
+      // Generate OTP for password reset
+      const otp = await otpService.createOTP(user.id, 'both');
+      
+      // Send OTP via email
+      await otpService.sendOTPEmail(user.email, otp);
+      
+      // Send OTP via SMS
+      const fullMobileNumber = `${user.mobileCountryCode}${user.mobileNumber}`;
+      await otpService.sendOTPSMS(fullMobileNumber, otp);
+
+      return {
+        userId: user.id,
+        success: true
+      };
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      throw error;
+    }
+  }
+
+  async resetPassword(userId: number, otp: string, newPassword: string): Promise<boolean> {
+    try {
+      // Verify OTP
+      const isValidOtp = await otpService.verifyOTP(userId, otp);
+      if (!isValidOtp) {
+        throw new Error("Invalid or expired OTP");
+      }
+
+      // Hash new password
+      const hashedPassword = await this.hashPassword(newPassword);
+      
+      // Update user password
+      await storage.updateUserPassword(userId, hashedPassword);
+      
+      return true;
+    } catch (error) {
+      console.error("Reset password error:", error);
+      throw error;
+    }
+  }
 }
 
 export const authService = new AuthService();

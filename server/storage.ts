@@ -13,8 +13,10 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByMobile(mobileCountryCode: string, mobileNumber: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserVerification(id: number, isVerified: boolean): Promise<void>;
+  updateUserPassword(id: number, hashedPassword: string): Promise<void>;
   
   // OTP operations
   createOtp(otp: InsertOtp): Promise<OtpVerification>;
@@ -35,6 +37,16 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByMobile(mobileCountryCode: string, mobileNumber: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      and(
+        eq(users.mobileCountryCode, mobileCountryCode),
+        eq(users.mobileNumber, mobileNumber)
+      )
+    );
+    return user;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -48,6 +60,16 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ 
         isVerified: isVerified.toString(),
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, id));
+  }
+
+  async updateUserPassword(id: number, hashedPassword: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        password: hashedPassword,
         updatedAt: new Date() 
       })
       .where(eq(users.id, id));

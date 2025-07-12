@@ -118,6 +118,20 @@ export const insertOtpSchema = createInsertSchema(otpVerifications).omit({
   isUsed: true 
 });
 
+export const forgotPasswordSchema = z.object({
+  identifier: z.string().min(1, "Email or phone number is required"),
+});
+
+export const resetPasswordSchema = z.object({
+  otp: z.string().length(6, "OTP must be 6 digits"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+  userId: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
@@ -125,3 +139,5 @@ export type LoginData = z.infer<typeof loginSchema>;
 export type OtpData = z.infer<typeof otpSchema>;
 export type OtpVerification = typeof otpVerifications.$inferSelect;
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
+export type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
