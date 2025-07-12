@@ -63,8 +63,10 @@ export default function Register() {
           description: "Redirecting to OTP verification...",
         });
         console.log("Redirecting to OTP verification with userId:", result.user.id);
-        // Use wouter navigation
-        setLocation(`/verify-otp?userId=${result.user.id}`);
+        // Use direct URL navigation with query parameters
+        const otpUrl = `/verify-otp?userId=${result.user.id}`;
+        console.log("Navigating to:", otpUrl);
+        window.location.href = otpUrl;
       } else {
         throw new Error(result.message);
       }
