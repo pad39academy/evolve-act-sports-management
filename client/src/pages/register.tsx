@@ -65,7 +65,7 @@ export default function Register() {
         console.log("Redirecting to OTP verification with userId:", result.user.id);
         // Small delay to allow toast to show before redirect
         setTimeout(() => {
-          setLocation(`/verify-otp?userId=${result.user.id}`);
+          window.location.href = `/verify-otp?userId=${result.user.id}`;
         }, 1000);
       } else {
         throw new Error(result.message);
