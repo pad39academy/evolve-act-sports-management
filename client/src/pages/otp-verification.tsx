@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Shield, ArrowLeft } from "lucide-react";
+import { Shield, ArrowLeft, Mail, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { verifyOTP, resendOTP } from "@/lib/auth";
 
@@ -13,6 +14,7 @@ export default function OTPVerification() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [timer, setTimer] = useState(300); // 5 minutes
+  const [activeTab, setActiveTab] = useState("email");
   const [generatedOTP, setGeneratedOTP] = useState("123456"); // Developer mode
 
   // Extract userId from URL params
@@ -95,13 +97,13 @@ export default function OTPVerification() {
     }
   };
 
-  const handleResendOTP = async () => {
+  const handleResendOTP = async (type: 'email' | 'sms' = 'email') => {
     try {
-      const result = await resendOTP(userId!, 'email');
+      const result = await resendOTP(userId!, type);
       if (result.success) {
         toast({
           title: "OTP Sent",
-          description: "A new OTP has been sent to your email.",
+          description: `A new OTP has been sent to your ${type === 'email' ? 'email' : 'mobile number'}.`,
         });
         setTimer(300); // Reset timer
         setGeneratedOTP(Math.floor(100000 + Math.random() * 900000).toString()); // Generate new OTP for demo
@@ -132,67 +134,163 @@ export default function OTPVerification() {
                 <Shield className="text-white h-8 w-8" />
               </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Account</h2>
-              <p className="text-gray-600">Enter the OTP sent to your email address</p>
+              <p className="text-gray-600">We've sent verification codes to both your email and mobile number</p>
             </div>
 
-            {/* OTP Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* OTP Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Enter OTP</label>
-                <div className="flex space-x-3 justify-center">
-                  {otp.map((digit, index) => (
-                    <Input
-                      key={index}
-                      id={`otp-${index}`}
-                      type="text"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      className="w-12 h-12 text-center text-lg font-semibold"
-                    />
-                  ))}
+            {/* Verification Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email
+                </TabsTrigger>
+                <TabsTrigger value="sms" className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" />
+                  SMS
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="email" className="mt-6">
+                <div className="text-center mb-4">
+                  <p className="text-gray-600">Enter the OTP sent to your email address</p>
                 </div>
-              </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* OTP Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Enter Email OTP</label>
+                    <div className="flex space-x-3 justify-center">
+                      {otp.map((digit, index) => (
+                        <Input
+                          key={index}
+                          id={`otp-${index}`}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          className="w-12 h-12 text-center text-lg font-semibold"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Developer Mode Console */}
+                  <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
+                    <div className="flex items-center mb-2">
+                      <span className="text-white">Developer Console</span>
+                    </div>
+                    <div>Generated Email OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
+                    <div className="text-gray-400 text-xs mt-1">// TODO: Integrate with email service for production</div>
+                  </div>
 
-              {/* Developer Mode Console */}
-              <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
-                <div className="flex items-center mb-2">
-                  <span className="text-white">Developer Console</span>
+                  {/* Timer */}
+                  <div className="text-center">
+                    <p className="text-gray-600">
+                      Code expires in <span className="font-semibold text-primary">{formatTime(timer)}</span>
+                    </p>
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold py-3 rounded-lg shadow-lg transition-all duration-200"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Verifying..." : "Verify Email OTP"}
+                  </Button>
+
+                  {/* Resend OTP */}
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handleResendOTP('email')}
+                      disabled={timer > 0}
+                      className="text-sm text-gray-600 hover:text-primary"
+                    >
+                      {timer > 0 ? `Resend available in ${formatTime(timer)}` : "Resend Email OTP"}
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="sms" className="mt-6">
+                <div className="text-center mb-4">
+                  <p className="text-gray-600">Enter the OTP sent to your mobile number</p>
                 </div>
-                <div>Generated OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
-                <div className="text-gray-400 text-xs mt-1">// TODO: Integrate with Twilio API for production</div>
-              </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* OTP Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Enter SMS OTP</label>
+                    <div className="flex space-x-3 justify-center">
+                      {otp.map((digit, index) => (
+                        <Input
+                          key={index}
+                          id={`otp-sms-${index}`}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          className="w-12 h-12 text-center text-lg font-semibold"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Developer Mode Console */}
+                  <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
+                    <div className="flex items-center mb-2">
+                      <span className="text-white">Developer Console</span>
+                    </div>
+                    <div>Generated SMS OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
+                    <div className="text-gray-400 text-xs mt-1">// TODO: Integrate with Twilio API for production</div>
+                  </div>
 
-              {/* Timer */}
-              <div className="text-center">
-                <p className="text-gray-600">
-                  Code expires in <span className="font-semibold text-primary">{formatTime(timer)}</span>
-                </p>
-              </div>
+                  {/* Timer */}
+                  <div className="text-center">
+                    <p className="text-gray-600">
+                      Code expires in <span className="font-semibold text-primary">{formatTime(timer)}</span>
+                    </p>
+                  </div>
 
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="w-full bg-green-600 hover:bg-green-700"
-                disabled={isLoading || timer === 0}
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold py-3 rounded-lg shadow-lg transition-all duration-200"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Verifying..." : "Verify SMS OTP"}
+                  </Button>
+
+                  {/* Resend OTP */}
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handleResendOTP('sms')}
+                      disabled={timer > 0}
+                      className="text-sm text-gray-600 hover:text-primary"
+                    >
+                      {timer > 0 ? `Resend available in ${formatTime(timer)}` : "Resend SMS OTP"}
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+            </Tabs>
+
+            {/* Back to Register */}
+            <div className="text-center mt-6">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setLocation("/register")}
+                className="text-gray-600 hover:text-gray-800 flex items-center justify-center mx-auto"
               >
-                {isLoading ? "Verifying..." : "Verify Account"}
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Register
               </Button>
-
-              {/* Resend OTP */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  className="text-primary hover:text-primary/80 font-medium"
-                  disabled={timer > 0}
-                >
-                  {timer > 0 ? `Resend OTP in ${formatTime(timer)}` : "Resend OTP"}
-                </button>
-              </div>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </div>
