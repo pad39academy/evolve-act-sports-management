@@ -60,13 +60,11 @@ export default function Register() {
       if (result.success) {
         toast({
           title: "Registration Successful",
-          description: "Please check your email for the OTP verification code.",
+          description: "Redirecting to OTP verification...",
         });
         console.log("Redirecting to OTP verification with userId:", result.user.id);
-        // Small delay to allow toast to show before redirect
-        setTimeout(() => {
-          window.location.href = `/verify-otp?userId=${result.user.id}`;
-        }, 1000);
+        // Use wouter navigation
+        setLocation(`/verify-otp?userId=${result.user.id}`);
       } else {
         throw new Error(result.message);
       }

@@ -20,11 +20,16 @@ export default function OTPVerification() {
   const urlParams = new URLSearchParams(location.split("?")[1]);
   const userId = urlParams.get("userId");
 
+  console.log("OTP Verification page loaded with location:", location);
+  console.log("Extracted userId:", userId);
+
   useEffect(() => {
     if (!userId) {
+      console.log("No userId found, redirecting to register");
       setLocation("/register");
       return;
     }
+    console.log("OTP verification initialized for userId:", userId);
 
     const countdown = setInterval(() => {
       setTimer((prev) => {
