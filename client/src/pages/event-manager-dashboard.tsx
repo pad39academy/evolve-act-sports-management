@@ -119,6 +119,11 @@ export default function EventManagerDashboard() {
     description: '',
     maxRadius: 10
   });
+  
+  const [hotelAssignForm, setHotelAssignForm] = useState({
+    hotelId: '',
+    clusterId: ''
+  });
 
   // Fetch tournaments
   const { data: tournaments, isLoading: tournamentsLoading } = useQuery({
@@ -144,7 +149,7 @@ export default function EventManagerDashboard() {
     retry: false,
   });
 
-  // Fetch hotels for cluster assignment
+  // Fetch all hotels
   const { data: hotels } = useQuery({
     queryKey: ['/api/hotels'],
     retry: false,
@@ -310,7 +315,10 @@ export default function EventManagerDashboard() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/hotels'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/event-manager/all-clusters'] });
       toast({ title: 'Hotel assigned to cluster successfully' });
+      setShowHotelAssignDialog(false);
+      resetHotelAssignForm();
     },
     onError: (error: Error) => {
       toast({ title: 'Error assigning hotel', description: error.message, variant: 'destructive' });
@@ -357,6 +365,13 @@ export default function EventManagerDashboard() {
       maxRadius: 10
     });
     setSelectedCluster(null);
+  };
+
+  const resetHotelAssignForm = () => {
+    setHotelAssignForm({
+      hotelId: '',
+      clusterId: ''
+    });
   };
 
   const handleEditTournament = (tournament: Tournament) => {
@@ -434,6 +449,15 @@ export default function EventManagerDashboard() {
     }
   };
 
+  const handleHotelAssignSubmit = () => {
+    if (hotelAssignForm.hotelId && hotelAssignForm.clusterId) {
+      assignHotelMutation.mutate({ 
+        hotelId: parseInt(hotelAssignForm.hotelId), 
+        clusterId: parseInt(hotelAssignForm.clusterId) 
+      });
+    }
+  };
+
   if (tournamentsLoading || matchesLoading || clustersLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -450,10 +474,11 @@ export default function EventManagerDashboard() {
       <h1 className="text-3xl font-bold mb-6">Event Manager Dashboard</h1>
       
       <Tabs defaultValue="tournaments" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="clusters">Hotel Clusters</TabsTrigger>
+          <TabsTrigger value="hotels">Assign Hotels</TabsTrigger>
         </TabsList>
         
         <TabsContent value="tournaments" className="space-y-4">
@@ -600,6 +625,56 @@ export default function EventManagerDashboard() {
                       <Button variant="outline" size="sm" onClick={() => deleteClusterMutation.mutate(cluster.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="hotels" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Assign Hotels to Clusters</h2>
+            <Button onClick={() => setShowHotelAssignDialog(true)}>
+              <Link className="w-4 h-4 mr-2" />
+              Assign Hotel
+            </Button>
+          </div>
+          
+          <div className="grid gap-4">
+            {hotels?.map((hotel: Hotel) => (
+              <Card key={hotel.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{hotel.name}</CardTitle>
+                      <CardDescription>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            {hotel.address || 'No address'}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Building className="w-4 h-4" />
+                            {hotel.totalRooms} rooms
+                          </span>
+                          {hotel.clusterId && (
+                            <span className="flex items-center gap-1">
+                              <Link className="w-4 h-4" />
+                              Cluster: {allClusters?.find(c => c.id === hotel.clusterId)?.name || 'Unknown'}
+                            </span>
+                          )}
+                        </div>
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={hotel.approved === 'true' ? 'default' : 'secondary'}>
+                        {hotel.approved === 'true' ? 'Approved' : 'Pending'}
+                      </Badge>
+                      <Badge variant={hotel.clusterId ? 'default' : 'outline'}>
+                        {hotel.clusterId ? 'Assigned' : 'Unassigned'}
+                      </Badge>
                     </div>
                   </div>
                 </CardHeader>
@@ -894,6 +969,58 @@ export default function EventManagerDashboard() {
                 {selectedCluster ? 'Update' : 'Create'} Cluster
               </Button>
               <Button variant="outline" onClick={() => setShowClusterDialog(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hotel Assignment Dialog */}
+      <Dialog open={showHotelAssignDialog} onOpenChange={setShowHotelAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Hotel to Cluster</DialogTitle>
+            <DialogDescription>
+              Select a hotel and assign it to a cluster near a stadium
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="assign-hotel">Select Hotel</Label>
+              <Select value={hotelAssignForm.hotelId} onValueChange={(value) => setHotelAssignForm({...hotelAssignForm, hotelId: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select hotel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hotels?.map((hotel: Hotel) => (
+                    <SelectItem key={hotel.id} value={hotel.id.toString()}>
+                      {hotel.name} - {hotel.address || 'No address'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="assign-cluster">Select Cluster</Label>
+              <Select value={hotelAssignForm.clusterId} onValueChange={(value) => setHotelAssignForm({...hotelAssignForm, clusterId: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select cluster" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allClusters?.map((cluster: HotelCluster) => (
+                    <SelectItem key={cluster.id} value={cluster.id.toString()}>
+                      {cluster.name} - {cluster.city} ({cluster.stadiumName})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleHotelAssignSubmit} disabled={!hotelAssignForm.hotelId || !hotelAssignForm.clusterId}>
+                Assign Hotel
+              </Button>
+              <Button variant="outline" onClick={() => setShowHotelAssignDialog(false)}>
                 Cancel
               </Button>
             </div>
