@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin, Users, Trophy, Building, Plus, Edit, Trash2, Link, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Trophy, Building, Plus, Edit, Trash2, Link, X, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -379,6 +379,23 @@ export default function EventManagerDashboard() {
     },
   });
 
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await apiRequest('/api/auth/logout', {
+        method: 'POST',
+      });
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: 'Logout failed',
+        description: 'There was an error logging out. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const resetTournamentForm = () => {
     setTournamentForm({
       name: '',
@@ -589,10 +606,35 @@ export default function EventManagerDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Event Manager Dashboard</h1>
-      
-      <Tabs defaultValue="tournaments" className="w-full">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center">
+                <Trophy className="text-white h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Event Manager Dashboard</h1>
+                <p className="text-gray-600">Manage tournaments, matches, and hotel clusters</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="flex items-center space-x-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="container mx-auto p-6">
+        <Tabs defaultValue="tournaments" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
@@ -1238,6 +1280,7 @@ export default function EventManagerDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
