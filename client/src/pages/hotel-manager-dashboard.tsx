@@ -85,7 +85,10 @@ export default function HotelManagerDashboard() {
     notableFeatures: '',
     totalRooms: 0,
     availableRooms: 0,
-    contactInfo: '',
+    contactPhone: '',
+    contactEmail: '',
+    alternatePhone: '',
+    alternateEmail: '',
     autoApproveBookings: false,
   });
 
@@ -348,7 +351,10 @@ export default function HotelManagerDashboard() {
       notableFeatures: '',
       totalRooms: 0,
       availableRooms: 0,
-      contactInfo: '',
+      contactPhone: '',
+      contactEmail: '',
+      alternatePhone: '',
+      alternateEmail: '',
       autoApproveBookings: false,
     });
   };
@@ -366,10 +372,24 @@ export default function HotelManagerDashboard() {
 
   const handleHotelSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Combine contact fields into a single JSON object
+    const contactInfo = JSON.stringify({
+      phone: hotelForm.contactPhone,
+      email: hotelForm.contactEmail,
+      alternatePhone: hotelForm.alternatePhone,
+      alternateEmail: hotelForm.alternateEmail,
+    });
+    
+    const submitData = {
+      ...hotelForm,
+      contactInfo,
+    };
+    
     if (editingHotel) {
-      updateHotelMutation.mutate({ id: editingHotel.id, data: hotelForm });
+      updateHotelMutation.mutate({ id: editingHotel.id, data: submitData });
     } else {
-      createHotelMutation.mutate(hotelForm);
+      createHotelMutation.mutate(submitData);
     }
   };
 
@@ -384,6 +404,18 @@ export default function HotelManagerDashboard() {
 
   const handleEditHotel = (hotel: Hotel) => {
     setEditingHotel(hotel);
+    
+    // Parse contact info if it exists
+    let contactData = { phone: '', email: '', alternatePhone: '', alternateEmail: '' };
+    if (hotel.contactInfo) {
+      try {
+        contactData = JSON.parse(hotel.contactInfo);
+      } catch (e) {
+        // If parsing fails, treat as old format (plain text)
+        contactData = { phone: hotel.contactInfo, email: '', alternatePhone: '', alternateEmail: '' };
+      }
+    }
+    
     setHotelForm({
       name: hotel.name,
       address: hotel.address,
@@ -391,7 +423,10 @@ export default function HotelManagerDashboard() {
       notableFeatures: hotel.notableFeatures,
       totalRooms: hotel.totalRooms,
       availableRooms: hotel.availableRooms,
-      contactInfo: hotel.contactInfo,
+      contactPhone: contactData.phone || '',
+      contactEmail: contactData.email || '',
+      alternatePhone: contactData.alternatePhone || '',
+      alternateEmail: contactData.alternateEmail || '',
       autoApproveBookings: hotel.autoApproveBookings,
     });
     setIsHotelDialogOpen(true);
@@ -511,13 +546,49 @@ export default function HotelManagerDashboard() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="contactInfo">Contact Information</Label>
-                    <Input
-                      id="contactInfo"
-                      value={hotelForm.contactInfo}
-                      onChange={(e) => setHotelForm({ ...hotelForm, contactInfo: e.target.value })}
-                      placeholder="Phone, email, etc."
-                    />
+                    <Label className="text-base font-medium mb-3 block">Contact Information</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="contactPhone">Phone Number</Label>
+                        <Input
+                          id="contactPhone"
+                          type="tel"
+                          value={hotelForm.contactPhone}
+                          onChange={(e) => setHotelForm({ ...hotelForm, contactPhone: e.target.value })}
+                          placeholder="+91-123-456-7890"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="contactEmail">Email Address</Label>
+                        <Input
+                          id="contactEmail"
+                          type="email"
+                          value={hotelForm.contactEmail}
+                          onChange={(e) => setHotelForm({ ...hotelForm, contactEmail: e.target.value })}
+                          placeholder="contact@hotel.com"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="alternatePhone">Alternate Phone</Label>
+                        <Input
+                          id="alternatePhone"
+                          type="tel"
+                          value={hotelForm.alternatePhone}
+                          onChange={(e) => setHotelForm({ ...hotelForm, alternatePhone: e.target.value })}
+                          placeholder="+91-123-456-7891"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="alternateEmail">Alternate Email</Label>
+                        <Input
+                          id="alternateEmail"
+                          type="email"
+                          value={hotelForm.alternateEmail}
+                          onChange={(e) => setHotelForm({ ...hotelForm, alternateEmail: e.target.value })}
+                          placeholder="alternate@hotel.com"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
