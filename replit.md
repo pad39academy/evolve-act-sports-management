@@ -126,3 +126,30 @@ Preferred communication style: Simple, everyday language.
 - Console logging for OTP codes in development mode
 
 The application is designed for scalability and maintainability, with clear separation of concerns between frontend and backend, comprehensive error handling, and secure authentication practices.
+
+## Sample Data
+
+The system includes 21 pre-approved sample users across all roles:
+
+### User Distribution by Role:
+- **State Admin Manager**: 3 users (Sundaram, Chidambaram, Balasubramaniam Corps)
+- **Lead Admin**: 3 users (Raman, Chidambaram, Iyer Corps)
+- **Admin**: 3 users (Rajagopal, Subramanian, Raman Corps)
+- **Event Manager**: 3 users (Iyer, Chidambaram Corps)
+- **Team Manager**: 3 users (Tamilnadu Sports Association)
+- **Player**: 3 users (Tamilnadu Sports Association)
+- **Hotel Manager**: 3 users (Sundaram, Iyer, Venkatesan Corps)
+
+### Sample Login Credentials:
+- **Email**: Use any of the sample emails (e.g., siddhartha.sundaram@example.com)
+- **Password**: Demo@123 (common password for all sample users)
+- **Status**: All users are pre-verified and ready to login
+
+### Key Sample Users:
+- **Siddhartha Sundaram** (siddhartha.sundaram@example.com) - State Admin Manager
+- **Karthik Raman** (karthik.raman@example.com) - Lead Admin
+- **Ravindra Rajagopal** (ravindra.rajagopal@example.com) - Admin
+- **Anand Iyer** (anand.iyer@example.com) - Event Manager
+- **Karthik Venkatesan** (karthik.venkatesan@example.com) - Team Manager
+- **Karthik Chidambaram** (karthik.chidambaram@example.com) - Player
+- **Anand Sundaram** (anand.sundaram@example.com) - Hotel Manager
