@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { format } from "date-fns";
-import { CalendarDays, MapPin, Clock, Users, QrCode, Hotel as HotelIcon, CheckCircle, XCircle, Download, Maximize2 } from "lucide-react";
+import { CalendarDays, MapPin, Clock, Users, QrCode, Hotel as HotelIcon, CheckCircle, XCircle, Download, Maximize2, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { logoutUser } from "@/lib/auth";
 import type { PlayerBooking, Tournament, Event, Hotel } from "@shared/schema";
 
 interface PlayerBookingsResponse {
@@ -102,6 +105,25 @@ const QRCodeDisplay = ({ qrCode, bookingId }: { qrCode: string; bookingId: numbe
 
 export default function PlayerDashboard() {
   const [selectedTab, setSelectedTab] = useState("current");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account.",
+      });
+      setLocation("/");
+    } catch (error) {
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
     queryKey: ['/api/player/bookings'],
@@ -292,11 +314,21 @@ export default function PlayerDashboard() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Player Dashboard</h1>
-          <p className="text-gray-600">
-            View your tournament bookings, hotel details, and event schedules
-          </p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Player Dashboard</h1>
+            <p className="text-gray-600">
+              View your tournament bookings, hotel details, and event schedules
+            </p>
+          </div>
+          <Button 
+            onClick={handleLogout} 
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
         </div>
 
         {/* Tabs */}
