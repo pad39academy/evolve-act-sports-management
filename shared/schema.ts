@@ -142,14 +142,30 @@ export type InsertOtp = z.infer<typeof insertOtpSchema>;
 export type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
 
+// Cities table (for approved cities)
+export const cities = pgTable("cities", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }).default("India"),
+  approved: varchar("approved", { length: 10 }).default("false"), // false, true, rejected
+  requestedBy: integer("requested_by").references(() => users.id), // Event Manager ID who requested
+  approvedBy: integer("approved_by").references(() => users.id), // Admin ID who approved
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Tournaments table
 export const tournaments = pgTable("tournaments", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  locations: text("locations").notNull(), // JSON array of locations
+  cityIds: text("city_ids").notNull(), // JSON array of city IDs
+  locations: text("locations").notNull(), // JSON array of city names (for backward compatibility)
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   approved: varchar("approved", { length: 10 }).default("false"),
+  createdBy: integer("created_by").references(() => users.id), // Event Manager ID
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -288,6 +304,7 @@ export const playerBookings = pgTable("player_bookings", {
 });
 
 // Insert schemas
+export const insertCitySchema = createInsertSchema(cities);
 export const insertTournamentSchema = createInsertSchema(tournaments);
 export const insertTeamSchema = createInsertSchema(teams);
 export const insertEventSchema = createInsertSchema(events);
@@ -299,6 +316,8 @@ export const insertBookingRequestSchema = createInsertSchema(bookingRequests);
 export const insertPlayerBookingSchema = createInsertSchema(playerBookings);
 
 // Types
+export type City = typeof cities.$inferSelect;
+export type InsertCity = z.infer<typeof insertCitySchema>;
 export type Tournament = typeof tournaments.$inferSelect;
 export type InsertTournament = z.infer<typeof insertTournamentSchema>;
 export type Team = typeof teams.$inferSelect;

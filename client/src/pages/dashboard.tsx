@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { LogOut, User, Settings, Calendar, Users, Hotel, Check, X, Trophy } from "lucide-react";
+import { LogOut, User, Settings, Calendar, Users, Hotel, Check, X, Trophy, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,13 @@ export default function Dashboard() {
   // Query for pending tournaments (only for admins)
   const { data: pendingTournaments, isLoading: tournamentsLoading } = useQuery({
     queryKey: ['/api/admin/tournaments/pending'],
+    enabled: !!(user && ['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)),
+    retry: false,
+  });
+
+  // Query for pending cities (only for admins)
+  const { data: pendingCities, isLoading: citiesLoading } = useQuery({
+    queryKey: ['/api/admin/cities/pending'],
     enabled: !!(user && ['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)),
     retry: false,
   });
@@ -134,6 +141,53 @@ export default function Dashboard() {
     },
   });
 
+  // City approval mutation
+  const approveCityMutation = useMutation({
+    mutationFn: async (cityId: number) => {
+      return await apiRequest(`/api/admin/cities/${cityId}/approve`, {
+        method: 'PATCH',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "City Approved",
+        description: "The city has been approved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/cities/pending'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve city",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // City rejection mutation
+  const rejectCityMutation = useMutation({
+    mutationFn: async ({ cityId, reason }: { cityId: number; reason: string }) => {
+      return await apiRequest(`/api/admin/cities/${cityId}/reject`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "City Rejected",
+        description: "The city has been rejected",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/cities/pending'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject city",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     loadUser();
   }, []);
@@ -227,8 +281,20 @@ export default function Dashboard() {
     }
   };
 
+  const handleApproveCity = (cityId: number) => {
+    approveCityMutation.mutate(cityId);
+  };
+
+  const handleRejectCity = (cityId: number) => {
+    const reason = prompt("Enter rejection reason:");
+    if (reason) {
+      rejectCityMutation.mutate({ cityId, reason });
+    }
+  };
+
   const canApproveHotels = user && ['admin', 'lead_admin', 'state_admin_manager', 'event_manager'].includes(user.role);
   const canApproveTournaments = user && ['admin', 'lead_admin', 'state_admin_manager'].includes(user.role);
+  const canApproveCities = user && ['admin', 'lead_admin', 'state_admin_manager'].includes(user.role);
 
   if (isLoading) {
     return (
@@ -474,6 +540,72 @@ export default function Dashboard() {
                   <p className="text-gray-600">No pending tournament approvals</p>
                   <p className="text-sm text-gray-500 mt-2">
                     All tournaments are currently approved
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* City Approval Section (for admins only) */}
+        {canApproveCities && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <MapPin className="h-5 w-5" />
+                <span>City Approvals</span>
+                {pendingCities && pendingCities.length > 0 && (
+                  <Badge variant="secondary">{pendingCities.length}</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {citiesLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-gray-600">Loading pending cities...</p>
+                </div>
+              ) : pendingCities && pendingCities.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingCities.map((city: any) => (
+                    <div key={city.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{city.name}</h4>
+                        <p className="text-sm text-gray-600">{city.state}, {city.country}</p>
+                        <p className="text-sm text-gray-500">
+                          Requested on: {new Date(city.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveCity(city.id)}
+                          disabled={approveCityMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <Check className="h-4 w-4" />
+                          <span>Approve</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRejectCity(city.id)}
+                          disabled={rejectCityMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <X className="h-4 w-4" />
+                          <span>Reject</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No pending city approvals</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    All cities are currently approved
                   </p>
                 </div>
               )}

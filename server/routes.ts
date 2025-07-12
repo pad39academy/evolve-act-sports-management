@@ -646,6 +646,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // City management routes
+  app.get('/api/cities', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Event Manager or Admin only' });
+      }
+
+      const cities = await storage.getApprovedCities();
+      res.json(cities);
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      res.status(500).json({ message: 'Failed to fetch cities' });
+    }
+  });
+
+  app.post('/api/cities/request', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Event Manager or Admin only' });
+      }
+
+      const cityData = { ...req.body, requestedBy: userId };
+      const city = await storage.createCityRequest(cityData);
+      res.json(city);
+    } catch (error) {
+      console.error('Error creating city request:', error);
+      res.status(500).json({ message: 'Failed to create city request' });
+    }
+  });
+
+  // Admin city approval routes
+  app.get('/api/admin/cities/pending', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin only' });
+      }
+
+      const pendingCities = await storage.getPendingCities();
+      res.json(pendingCities);
+    } catch (error) {
+      console.error('Error fetching pending cities:', error);
+      res.status(500).json({ message: 'Failed to fetch pending cities' });
+    }
+  });
+
+  app.patch('/api/admin/cities/:id/approve', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin only' });
+      }
+
+      const cityId = parseInt(req.params.id);
+      const approvedCity = await storage.approveCity(cityId, userId);
+      res.json(approvedCity);
+    } catch (error) {
+      console.error('Error approving city:', error);
+      res.status(500).json({ message: 'Failed to approve city' });
+    }
+  });
+
+  app.patch('/api/admin/cities/:id/reject', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: 'Access denied - Admin only' });
+      }
+
+      const cityId = parseInt(req.params.id);
+      const { reason } = req.body;
+      await storage.rejectCity(cityId, reason);
+      res.json({ message: 'City rejected successfully' });
+    } catch (error) {
+      console.error('Error rejecting city:', error);
+      res.status(500).json({ message: 'Failed to reject city' });
+    }
+  });
+
   // Event Manager routes
   // Tournament management
   app.get('/api/event-manager/tournaments', requireAuth, async (req: any, res) => {

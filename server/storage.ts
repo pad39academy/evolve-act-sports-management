@@ -1,6 +1,7 @@
 import {
   users,
   otpVerifications,
+  cities,
   tournaments,
   teams,
   events,
@@ -14,6 +15,8 @@ import {
   type InsertUser,
   type OtpVerification,
   type InsertOtp,
+  type City,
+  type InsertCity,
   type Tournament,
   type InsertTournament,
   type Team,
@@ -76,6 +79,14 @@ export interface IStorage {
   getPendingTournaments(): Promise<Tournament[]>;
   approveTournament(tournamentId: number, approvedBy: number): Promise<Tournament>;
   rejectTournament(tournamentId: number, rejectionReason: string): Promise<void>;
+  
+  // City management operations
+  getApprovedCities(): Promise<City[]>;
+  getAllCities(): Promise<City[]>;
+  getPendingCities(): Promise<City[]>;
+  createCityRequest(city: InsertCity): Promise<City>;
+  approveCity(cityId: number, approvedBy: number): Promise<City>;
+  rejectCity(cityId: number, rejectionReason: string): Promise<void>;
   
   // Event Manager operations
   // Tournament and match management
@@ -404,6 +415,48 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(tournaments.id, tournamentId));
+  }
+
+  // City management operations
+  async getApprovedCities(): Promise<City[]> {
+    return await db.select().from(cities).where(eq(cities.approved, "true"));
+  }
+
+  async getAllCities(): Promise<City[]> {
+    return await db.select().from(cities);
+  }
+
+  async getPendingCities(): Promise<City[]> {
+    return await db.select().from(cities).where(eq(cities.approved, "false"));
+  }
+
+  async createCityRequest(city: InsertCity): Promise<City> {
+    const [newCity] = await db.insert(cities).values(city).returning();
+    return newCity;
+  }
+
+  async approveCity(cityId: number, approvedBy: number): Promise<City> {
+    const [approvedCity] = await db
+      .update(cities)
+      .set({ 
+        approved: "true",
+        approvedBy: approvedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(cities.id, cityId))
+      .returning();
+    return approvedCity;
+  }
+
+  async rejectCity(cityId: number, rejectionReason: string): Promise<void> {
+    await db
+      .update(cities)
+      .set({ 
+        approved: "rejected",
+        rejectionReason: rejectionReason,
+        updatedAt: new Date()
+      })
+      .where(eq(cities.id, cityId));
   }
 
   // Event Manager operations

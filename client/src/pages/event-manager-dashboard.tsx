@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin, Users, Trophy, Building, Plus, Edit, Trash2, Link } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Trophy, Building, Plus, Edit, Trash2, Link, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -92,8 +92,18 @@ export default function EventManagerDashboard() {
     locations: '',
     startDate: '',
     endDate: '',
-    approved: 'false'
+    approved: 'false',
+    selectedCities: [] as number[], // Array of city IDs
+    cityNames: [] as string[] // Array of city names for display
   });
+
+  const [newCityForm, setNewCityForm] = useState({
+    name: '',
+    state: '',
+    country: 'India'
+  });
+
+  const [showNewCityDialog, setShowNewCityDialog] = useState(false);
   
   const [matchForm, setMatchForm] = useState({
     tournamentId: '',
@@ -155,13 +165,29 @@ export default function EventManagerDashboard() {
     retry: false,
   });
 
+  // Fetch approved cities
+  const { data: cities } = useQuery({
+    queryKey: ['/api/cities'],
+    retry: false,
+  });
+
   // Tournament mutations
   const createTournamentMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/event-manager/tournaments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data: any) => {
+      // Convert selectedCities to cityIds and prepare locations
+      const cityIds = JSON.stringify(data.selectedCities || []);
+      const locations = JSON.stringify(data.cityNames || []);
+      
+      return apiRequest('/api/event-manager/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          cityIds,
+          locations
+        }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/event-manager/tournaments'] });
       toast({ title: 'Tournament created successfully' });
@@ -170,6 +196,24 @@ export default function EventManagerDashboard() {
     },
     onError: (error: Error) => {
       toast({ title: 'Error creating tournament', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // New city request mutation
+  const createCityRequestMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('/api/cities/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/cities'] });
+      toast({ title: 'City request submitted successfully', description: 'Admin will review your request' });
+      setShowNewCityDialog(false);
+      setNewCityForm({ name: '', state: '', country: 'India' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error submitting city request', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -331,9 +375,42 @@ export default function EventManagerDashboard() {
       locations: '',
       startDate: '',
       endDate: '',
-      approved: 'false'
+      approved: 'false',
+      selectedCities: [],
+      cityNames: []
     });
     setSelectedTournament(null);
+  };
+
+  // City management functions
+  const addCityToTournament = (cityId: number) => {
+    if (!tournamentForm.selectedCities.includes(cityId)) {
+      const city = cities?.find(c => c.id === cityId);
+      if (city) {
+        setTournamentForm(prev => ({
+          ...prev,
+          selectedCities: [...prev.selectedCities, cityId],
+          cityNames: [...prev.cityNames, city.name]
+        }));
+      }
+    }
+  };
+
+  const removeCityFromTournament = (cityId: number) => {
+    const cityIndex = tournamentForm.selectedCities.indexOf(cityId);
+    if (cityIndex > -1) {
+      setTournamentForm(prev => ({
+        ...prev,
+        selectedCities: prev.selectedCities.filter(id => id !== cityId),
+        cityNames: prev.cityNames.filter((_, index) => index !== cityIndex)
+      }));
+    }
+  };
+
+  const handleCreateCityRequest = () => {
+    if (newCityForm.name.trim() && newCityForm.state.trim()) {
+      createCityRequestMutation.mutate(newCityForm);
+    }
   };
 
   const resetMatchForm = () => {
@@ -704,13 +781,56 @@ export default function EventManagerDashboard() {
               />
             </div>
             <div>
-              <Label htmlFor="tournament-locations">Locations</Label>
-              <Input
-                id="tournament-locations"
-                value={tournamentForm.locations}
-                onChange={(e) => setTournamentForm({...tournamentForm, locations: e.target.value})}
-                placeholder="Enter locations (comma-separated)"
-              />
+              <div className="flex items-center justify-between">
+                <Label>Cities</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowNewCityDialog(true)}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Request New City
+                </Button>
+              </div>
+              
+              {/* Selected Cities */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {tournamentForm.selectedCities.map((cityId, index) => {
+                  const city = cities?.find(c => c.id === cityId);
+                  return (
+                    <Badge key={cityId} variant="secondary" className="flex items-center gap-1">
+                      <span>{city?.name || 'Unknown'}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0"
+                        onClick={() => removeCityFromTournament(cityId)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </Badge>
+                  );
+                })}
+              </div>
+              
+              {/* City Dropdown */}
+              <Select 
+                value="" 
+                onValueChange={(value) => addCityToTournament(parseInt(value))}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select a city to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cities?.filter(city => !tournamentForm.selectedCities.includes(city.id)).map(city => (
+                    <SelectItem key={city.id} value={city.id.toString()}>
+                      {city.name}, {city.state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1021,6 +1141,55 @@ export default function EventManagerDashboard() {
                 Assign Hotel
               </Button>
               <Button variant="outline" onClick={() => setShowHotelAssignDialog(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New City Request Dialog */}
+      <Dialog open={showNewCityDialog} onOpenChange={setShowNewCityDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request New City</DialogTitle>
+            <DialogDescription>
+              Request a new city to be added to the tournament system. Admin approval is required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="city-name">City Name</Label>
+              <Input
+                id="city-name"
+                value={newCityForm.name}
+                onChange={(e) => setNewCityForm({...newCityForm, name: e.target.value})}
+                placeholder="Enter city name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="city-state">State</Label>
+              <Input
+                id="city-state"
+                value={newCityForm.state}
+                onChange={(e) => setNewCityForm({...newCityForm, state: e.target.value})}
+                placeholder="Enter state name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="city-country">Country</Label>
+              <Input
+                id="city-country"
+                value={newCityForm.country}
+                onChange={(e) => setNewCityForm({...newCityForm, country: e.target.value})}
+                placeholder="Enter country name"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleCreateCityRequest} disabled={!newCityForm.name.trim() || !newCityForm.state.trim()}>
+                Submit Request
+              </Button>
+              <Button variant="outline" onClick={() => setShowNewCityDialog(false)}>
                 Cancel
               </Button>
             </div>
