@@ -4,7 +4,6 @@ import { Shield, ArrowLeft, Mail, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { verifyOTP, resendOTP } from "@/lib/auth";
 
@@ -137,147 +136,97 @@ export default function OTPVerification() {
               <p className="text-gray-600">We've sent verification codes to both your email and mobile number</p>
             </div>
 
-            {/* Verification Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="email" className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Email
-                </TabsTrigger>
-                <TabsTrigger value="sms" className="flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  SMS
-                </TabsTrigger>
-              </TabsList>
+            {/* Verification Method Toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+              <Button
+                type="button"
+                variant={activeTab === "email" ? "default" : "ghost"}
+                onClick={() => setActiveTab("email")}
+                className="flex-1 flex items-center gap-2 justify-center"
+              >
+                <Mail className="h-4 w-4" />
+                Email
+              </Button>
+              <Button
+                type="button"
+                variant={activeTab === "sms" ? "default" : "ghost"}
+                onClick={() => setActiveTab("sms")}
+                className="flex-1 flex items-center gap-2 justify-center"
+              >
+                <Smartphone className="h-4 w-4" />
+                SMS
+              </Button>
+            </div>
 
-              <TabsContent value="email" className="mt-6">
-                <div className="text-center mb-4">
-                  <p className="text-gray-600">Enter the OTP sent to your email address</p>
+            {/* OTP Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="text-center mb-4">
+                <p className="text-gray-600">
+                  Enter the OTP sent to your {activeTab === "email" ? "email address" : "mobile number"}
+                </p>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter {activeTab === "email" ? "Email" : "SMS"} OTP
+                </label>
+                <div className="flex space-x-3 justify-center">
+                  {otp.map((digit, index) => (
+                    <Input
+                      key={index}
+                      id={`otp-${index}`}
+                      type="text"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      className="w-12 h-12 text-center text-lg font-semibold"
+                    />
+                  ))}
                 </div>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* OTP Input */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Enter Email OTP</label>
-                    <div className="flex space-x-3 justify-center">
-                      {otp.map((digit, index) => (
-                        <Input
-                          key={index}
-                          id={`otp-${index}`}
-                          type="text"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpChange(index, e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(index, e)}
-                          className="w-12 h-12 text-center text-lg font-semibold"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Developer Mode Console */}
-                  <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
-                    <div className="flex items-center mb-2">
-                      <span className="text-white">Developer Console</span>
-                    </div>
-                    <div>Generated Email OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
-                    <div className="text-gray-400 text-xs mt-1">// TODO: Integrate with email service for production</div>
-                  </div>
+              </div>
 
-                  {/* Timer */}
-                  <div className="text-center">
-                    <p className="text-gray-600">
-                      Code expires in <span className="font-semibold text-primary">{formatTime(timer)}</span>
-                    </p>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold py-3 rounded-lg shadow-lg transition-all duration-200"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Verifying..." : "Verify Email OTP"}
-                  </Button>
-
-                  {/* Resend OTP */}
-                  <div className="text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => handleResendOTP('email')}
-                      disabled={timer > 0}
-                      className="text-sm text-gray-600 hover:text-primary"
-                    >
-                      {timer > 0 ? `Resend available in ${formatTime(timer)}` : "Resend Email OTP"}
-                    </Button>
-                  </div>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="sms" className="mt-6">
-                <div className="text-center mb-4">
-                  <p className="text-gray-600">Enter the OTP sent to your mobile number</p>
+              {/* Developer Mode Console */}
+              <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
+                <div className="flex items-center mb-2">
+                  <span className="text-white">Developer Console</span>
                 </div>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* OTP Input */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Enter SMS OTP</label>
-                    <div className="flex space-x-3 justify-center">
-                      {otp.map((digit, index) => (
-                        <Input
-                          key={index}
-                          id={`otp-sms-${index}`}
-                          type="text"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpChange(index, e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(index, e)}
-                          className="w-12 h-12 text-center text-lg font-semibold"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Developer Mode Console */}
-                  <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm">
-                    <div className="flex items-center mb-2">
-                      <span className="text-white">Developer Console</span>
-                    </div>
-                    <div>Generated SMS OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
-                    <div className="text-gray-400 text-xs mt-1">// TODO: Integrate with Twilio API for production</div>
-                  </div>
+                <div>Generated {activeTab === "email" ? "Email" : "SMS"} OTP: <span className="text-yellow-400">{generatedOTP}</span></div>
+                <div className="text-gray-400 text-xs mt-1">
+                  // TODO: Integrate with {activeTab === "email" ? "email service" : "Twilio API"} for production
+                </div>
+              </div>
 
-                  {/* Timer */}
-                  <div className="text-center">
-                    <p className="text-gray-600">
-                      Code expires in <span className="font-semibold text-primary">{formatTime(timer)}</span>
-                    </p>
-                  </div>
+              {/* Timer */}
+              <div className="text-center">
+                <p className="text-gray-600">
+                  Code expires in <span className="font-semibold text-primary">{formatTime(timer)}</span>
+                </p>
+              </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold py-3 rounded-lg shadow-lg transition-all duration-200"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Verifying..." : "Verify SMS OTP"}
-                  </Button>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold py-3 rounded-lg shadow-lg transition-all duration-200"
+                disabled={isLoading}
+              >
+                {isLoading ? "Verifying..." : `Verify ${activeTab === "email" ? "Email" : "SMS"} OTP`}
+              </Button>
 
-                  {/* Resend OTP */}
-                  <div className="text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => handleResendOTP('sms')}
-                      disabled={timer > 0}
-                      className="text-sm text-gray-600 hover:text-primary"
-                    >
-                      {timer > 0 ? `Resend available in ${formatTime(timer)}` : "Resend SMS OTP"}
-                    </Button>
-                  </div>
-                </form>
-              </TabsContent>
-            </Tabs>
+              {/* Resend OTP */}
+              <div className="text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => handleResendOTP(activeTab as 'email' | 'sms')}
+                  disabled={timer > 0}
+                  className="text-sm text-gray-600 hover:text-primary"
+                >
+                  {timer > 0 ? `Resend available in ${formatTime(timer)}` : `Resend ${activeTab === "email" ? "Email" : "SMS"} OTP`}
+                </Button>
+              </div>
+            </form>
 
             {/* Back to Register */}
             <div className="text-center mt-6">
