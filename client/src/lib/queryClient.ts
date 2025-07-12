@@ -33,7 +33,24 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  if (!res.ok) {
+    try {
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        // Extract clean error message from JSON response
+        const errorMessage = json.message || json.error || res.statusText;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the text as is
+        throw new Error(text || res.statusText);
+      }
+    } catch (readError) {
+      // If reading response fails, fall back to status text
+      throw new Error(res.statusText);
+    }
+  }
+
   return await res.json();
 }
 
@@ -51,7 +68,24 @@ export const getQueryFn: <T>(options: {
       return null;
     }
 
-    await throwIfResNotOk(res);
+    if (!res.ok) {
+      try {
+        const text = await res.text();
+        try {
+          const json = JSON.parse(text);
+          // Extract clean error message from JSON response
+          const errorMessage = json.message || json.error || res.statusText;
+          throw new Error(errorMessage);
+        } catch (parseError) {
+          // If JSON parsing fails, use the text as is
+          throw new Error(text || res.statusText);
+        }
+      } catch (readError) {
+        // If reading response fails, fall back to status text
+        throw new Error(res.statusText);
+      }
+    }
+
     return await res.json();
   };
 
