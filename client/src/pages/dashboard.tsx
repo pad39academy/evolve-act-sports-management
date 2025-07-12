@@ -30,6 +30,12 @@ export default function Dashboard() {
     try {
       const userData = await getCurrentUser();
       setUser(userData);
+      
+      // Redirect players to their specific dashboard
+      if (userData.role === 'player') {
+        setLocation('/player-dashboard');
+        return;
+      }
     } catch (error) {
       toast({
         title: "Authentication Error",

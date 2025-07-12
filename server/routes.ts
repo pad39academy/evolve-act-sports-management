@@ -280,6 +280,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return permissions[role as keyof typeof permissions] || ["view_profile"];
   }
 
+  // Player dashboard routes
+  app.get('/api/player/bookings', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'player') {
+        return res.status(403).json({ message: 'Access denied - Players only' });
+      }
+
+      const allBookings = await storage.getPlayerBookings(userId);
+      const currentBookings = await storage.getPlayerCurrentBookings(userId);
+      const pastBookings = await storage.getPlayerPastBookings(userId);
+
+      res.json({
+        all: allBookings,
+        current: currentBookings,
+        past: pastBookings
+      });
+    } catch (error) {
+      console.error('Error fetching player bookings:', error);
+      res.status(500).json({ message: 'Failed to fetch bookings' });
+    }
+  });
+
+  app.get('/api/tournaments', async (req, res) => {
+    try {
+      const tournaments = await storage.getTournaments();
+      res.json(tournaments);
+    } catch (error) {
+      console.error('Error fetching tournaments:', error);
+      res.status(500).json({ message: 'Failed to fetch tournaments' });
+    }
+  });
+
+  app.get('/api/events', async (req, res) => {
+    try {
+      const events = await storage.getEvents();
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      res.status(500).json({ message: 'Failed to fetch events' });
+    }
+  });
+
+  app.get('/api/hotels', async (req, res) => {
+    try {
+      const hotels = await storage.getHotels();
+      res.json(hotels);
+    } catch (error) {
+      console.error('Error fetching hotels:', error);
+      res.status(500).json({ message: 'Failed to fetch hotels' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

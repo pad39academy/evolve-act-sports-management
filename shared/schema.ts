@@ -141,3 +141,104 @@ export type OtpVerification = typeof otpVerifications.$inferSelect;
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
 export type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
+
+// Tournaments table
+export const tournaments = pgTable("tournaments", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  locations: text("locations").notNull(), // JSON array of locations
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  approved: varchar("approved", { length: 10 }).default("false"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Teams table
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  sport: varchar("sport", { length: 100 }).notNull(),
+  tournamentId: integer("tournament_id").references(() => tournaments.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Events (matches) table
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  sport: varchar("sport", { length: 100 }).notNull(),
+  tournamentId: integer("tournament_id").references(() => tournaments.id),
+  date: timestamp("date").notNull(),
+  time: varchar("time", { length: 10 }).notNull(),
+  teamsInvolved: text("teams_involved").notNull(), // JSON array of team names
+  location: varchar("location", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Hotel clusters table
+export const hotelClusters = pgTable("hotel_clusters", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  city: varchar("city", { length: 100 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Hotels table
+export const hotels = pgTable("hotels", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  clusterId: integer("cluster_id").references(() => hotelClusters.id),
+  proximityToVenue: varchar("proximity_to_venue", { length: 255 }),
+  notableFeatures: text("notable_features"),
+  totalRooms: integer("total_rooms").default(0),
+  availableRooms: integer("available_rooms").default(0),
+  address: text("address"),
+  contactInfo: text("contact_info"), // JSON object with phone, email, etc.
+  approved: varchar("approved", { length: 10 }).default("false"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Player bookings table
+export const playerBookings = pgTable("player_bookings", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id").references(() => users.id),
+  tournamentId: integer("tournament_id").references(() => tournaments.id),
+  eventId: integer("event_id").references(() => events.id),
+  hotelId: integer("hotel_id").references(() => hotels.id),
+  teamName: varchar("team_name", { length: 255 }),
+  checkInDate: timestamp("check_in_date"),
+  checkOutDate: timestamp("check_out_date"),
+  checkInTime: timestamp("check_in_time"),
+  checkOutTime: timestamp("check_out_time"),
+  qrCode: varchar("qr_code", { length: 255 }).unique(),
+  confirmationCode: varchar("confirmation_code", { length: 50 }).unique(),
+  status: varchar("status", { length: 50 }).default("pending"), // pending, confirmed, checked_in, checked_out
+  specialRequests: text("special_requests"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas
+export const insertTournamentSchema = createInsertSchema(tournaments);
+export const insertTeamSchema = createInsertSchema(teams);
+export const insertEventSchema = createInsertSchema(events);
+export const insertHotelClusterSchema = createInsertSchema(hotelClusters);
+export const insertHotelSchema = createInsertSchema(hotels);
+export const insertPlayerBookingSchema = createInsertSchema(playerBookings);
+
+// Types
+export type Tournament = typeof tournaments.$inferSelect;
+export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type Event = typeof events.$inferSelect;
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type HotelCluster = typeof hotelClusters.$inferSelect;
+export type InsertHotelCluster = z.infer<typeof insertHotelClusterSchema>;
+export type Hotel = typeof hotels.$inferSelect;
+export type InsertHotel = z.infer<typeof insertHotelSchema>;
+export type PlayerBooking = typeof playerBookings.$inferSelect;
+export type InsertPlayerBooking = z.infer<typeof insertPlayerBookingSchema>;
