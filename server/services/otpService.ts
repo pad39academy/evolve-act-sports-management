@@ -7,6 +7,15 @@ export class OTPService {
   }
 
   async createOTP(userId: number, type: 'email' | 'sms'): Promise<string> {
+    // Check if there's already a valid OTP for this user
+    const existingOtp = await storage.getValidOtpForUser(userId);
+    
+    if (existingOtp) {
+      // Return the existing OTP
+      console.log(`Using existing OTP for user ${userId}: ${existingOtp.otp}`);
+      return existingOtp.otp;
+    }
+
     const otp = this.generateOTP();
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 5); // OTP expires in 5 minutes
@@ -14,7 +23,7 @@ export class OTPService {
     const otpData: InsertOtp = {
       userId,
       otp,
-      type,
+      type: 'both', // Use 'both' to indicate it works for both email and SMS
       expiresAt,
     };
 

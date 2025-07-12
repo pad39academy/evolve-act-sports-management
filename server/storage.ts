@@ -19,6 +19,7 @@ export interface IStorage {
   // OTP operations
   createOtp(otp: InsertOtp): Promise<OtpVerification>;
   getValidOtp(userId: number, otp: string): Promise<OtpVerification | undefined>;
+  getValidOtpForUser(userId: number): Promise<OtpVerification | undefined>;
   markOtpAsUsed(id: number): Promise<void>;
   cleanupExpiredOtps(): Promise<void>;
 }
@@ -71,6 +72,28 @@ export class DatabaseStorage implements IStorage {
           eq(otpVerifications.isUsed, "false")
         )
       );
+    
+    if (!otpRecord) return undefined;
+    
+    // Check if OTP is expired
+    if (new Date() > otpRecord.expiresAt) {
+      return undefined;
+    }
+    
+    return otpRecord;
+  }
+
+  async getValidOtpForUser(userId: number): Promise<OtpVerification | undefined> {
+    const [otpRecord] = await db
+      .select()
+      .from(otpVerifications)
+      .where(
+        and(
+          eq(otpVerifications.userId, userId),
+          eq(otpVerifications.isUsed, "false")
+        )
+      )
+      .orderBy(otpVerifications.createdAt);
     
     if (!otpRecord) return undefined;
     

@@ -36,7 +36,7 @@ export const otpVerifications = pgTable("otp_verifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   otp: varchar("otp", { length: 6 }).notNull(),
-  type: varchar("type", { length: 20 }).notNull(), // 'email' or 'sms'
+  type: varchar("type", { length: 20 }).notNull(), // 'email', 'sms', or 'both'
   expiresAt: timestamp("expires_at").notNull(),
   isUsed: varchar("is_used", { length: 10 }).default("false"),
   createdAt: timestamp("created_at").defaultNow(),
