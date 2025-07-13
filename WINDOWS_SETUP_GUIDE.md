@@ -94,17 +94,30 @@ Before setting up the project on your Windows laptop, ensure you have:
    ```cmd
    npm run db:push
    ```
-2. If you want sample data:
+2. If you want sample data (use Windows batch script):
    ```cmd
-   npm run populate-sample-data
+   populate-windows.bat
    ```
 
 ### Step 9: Start the Application
+
+#### Option 1: Using Windows Batch Script (Recommended)
 1. Start development server:
+   ```cmd
+   dev-windows.bat
+   ```
+
+#### Option 2: Using NPM (if cross-env is installed)
+1. Install cross-env for Windows compatibility:
+   ```cmd
+   npm install cross-env
+   ```
+2. Start development server:
    ```cmd
    npm run dev
    ```
-2. Open your browser and go to: `http://localhost:5000`
+
+3. Open your browser and go to: `http://localhost:5000`
 
 ## 🧪 Testing the Application
 
@@ -197,7 +210,19 @@ If database connection fails:
 2. Verify connection string in `.env`
 3. Check firewall settings
 
-#### 4. Port 5000 Already in Use
+#### 4. NODE_ENV Environment Variable Error
+If you get `'NODE_ENV' is not recognized` error:
+1. **Use Windows batch scripts** (recommended):
+   ```cmd
+   dev-windows.bat
+   populate-windows.bat
+   ```
+2. **Install cross-env** for npm script compatibility:
+   ```cmd
+   npm install cross-env
+   ```
+
+#### 5. Port 5000 Already in Use
 If port 5000 is occupied:
 1. Find and kill the process:
    ```cmd
@@ -206,17 +231,29 @@ If port 5000 is occupied:
    ```
 2. Or modify the port in `server/index.ts`
 
-#### 5. TypeScript Compilation Errors
+#### 6. TypeScript Compilation Errors
 If TypeScript errors occur:
 ```cmd
 npm run build
 ```
 
-#### 6. Git Line Ending Issues
+#### 7. Git Line Ending Issues
 Configure Git for Windows:
 ```cmd
 git config --global core.autocrlf true
 ```
+
+#### 8. Missing populate-sample-data Script
+If `npm run populate-sample-data` fails:
+1. Use the Windows batch script instead:
+   ```cmd
+   populate-windows.bat
+   ```
+2. Or run directly:
+   ```cmd
+   set NODE_ENV=development
+   tsx server/populateSampleData.ts
+   ```
 
 ## 📊 Performance Optimization
 

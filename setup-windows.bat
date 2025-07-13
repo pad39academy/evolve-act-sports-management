@@ -70,13 +70,30 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: Ask user if they want to populate sample data
+echo.
+echo Do you want to populate sample data? (y/n)
+set /p populate_choice=
+if /i "%populate_choice%"=="y" (
+    echo.
+    echo Populating sample data...
+    populate-windows.bat
+    if %errorlevel% neq 0 (
+        echo WARNING: Failed to populate sample data
+        echo You can try running populate-windows.bat later
+        echo.
+    )
+)
+
 echo.
 echo ================================================
 echo    Setup completed successfully!
 echo ================================================
 echo.
 echo To start the application, run:
-echo    npm run dev
+echo    dev-windows.bat
+echo.
+echo Alternative: npm run dev (if cross-env is installed)
 echo.
 echo Then open your browser to: http://localhost:5000
 echo.
