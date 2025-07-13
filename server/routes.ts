@@ -1007,6 +1007,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public tournament routes
+  app.get('/api/tournaments/approved', requireAuth, async (req: any, res) => {
+    try {
+      const tournaments = await storage.getTournaments();
+      // Filter only approved tournaments
+      const approvedTournaments = tournaments.filter(t => t.approved === 'true');
+      res.json(approvedTournaments);
+    } catch (error) {
+      console.error("Error fetching approved tournaments:", error);
+      res.status(500).json({ message: "Failed to fetch approved tournaments" });
+    }
+  });
+
   // Team Manager routes
   app.get('/api/team-manager/team-requests', requireAuth, async (req: any, res) => {
     try {

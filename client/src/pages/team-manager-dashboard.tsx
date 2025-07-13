@@ -288,10 +288,6 @@ export default function TeamManagerDashboard() {
           <TabsContent value="team-requests" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Team Requests</h2>
-              <Button onClick={() => setShowAddTeamDialog(true)} className="flex items-center space-x-2">
-                <Plus className="h-4 w-4" />
-                <span>Add New Team</span>
-              </Button>
             </div>
 
             {teamRequestsLoading ? (
