@@ -1,0 +1,110 @@
+PS C:\Users\sramy\OneDrive\Desktop\ievolve> .\populate-windows.bat
+
+================================================
+   Populating Sample Data for Windows
+================================================
+
+Running sample data population...
+C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9
+  throw new Error(
+        ^
+
+
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+    at <anonymous> (C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:329:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.17.0
+PS C:\Users\sramy\OneDrive\Desktop\ievolve> ./populate-windows-alt.ps1
+================================================
+   Populating Sample Data for Windows
+================================================
+
+Running sample data population...
+C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9
+  throw new Error(
+        ^
+
+
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+    at <anonymous> (C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:329:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.17.0
+ERROR: Failed to populate sample data
+Please check your database connection in .env file
+Press Enter to exit:
+
+PS C:\Users\sramy\OneDrive\Desktop\ievolve> node populate-simple.js
+================================================
+   Populating Sample Data for Windows
+================================================
+
+Project: rest-express
+Environment: development
+
+Trying command 1: npx tsx server/populateSampleData.ts
+Command 1 failed: Command failed: npx tsx server/populateSampleData.ts
+C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9
+  throw new Error(
+        ^
+
+
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+    at <anonymous> (C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:329:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.17.0
+
+Trying command 2: node_modules\.bin\tsx server/populateSampleData.ts
+Command 2 failed: Command failed: node_modules\.bin\tsx server/populateSampleData.ts
+C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9
+  throw new Error(
+        ^
+
+
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+    at <anonymous> (C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:329:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.17.0
+
+Trying command 3: node_modules/.bin/tsx server/populateSampleData.ts
+Command 3 failed: Command failed: node_modules/.bin/tsx server/populateSampleData.ts
+'node_modules' is not recognized as an internal or external command,
+operable program or batch file.
+
+❌ All commands failed. Please check:
+1. Database connection in .env file
+2. Node.js and npm are properly installed
+3. Dependencies are installed (run: npm install)
+PS C:\Users\sramy\OneDrive\Desktop\ievolve> npx tsx server/populateSampleData.ts
+C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9
+  throw new Error(
+        ^
+
+
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+    at <anonymous> (C:\Users\sramy\OneDrive\Desktop\ievolve\server\db.ts:9:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:329:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.17.0
+PS C:\Users\sramy\OneDrive\Desktop\ievolve> cat .\.env
+# Database Configuration
+DATABASE_URL=postgresql://postgres:test@localhost:5432/evolve_act_sports
+
+# Session Security (Generate a strong random string)
+SESSION_SECRET=life_is_beautiful
+
+# Development Environment
+NODE_ENV=development
