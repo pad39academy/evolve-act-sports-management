@@ -73,6 +73,23 @@ interface Hotel {
   approved: string;
   autoApproveBookings: boolean;
   createdAt: string;
+}
+
+interface TeamMember {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
+  alternateContact: string;
+  dateOfBirth: string;
+  gender: string;
+  city: string;
+  address: string;
+  position: string;
+  sport: string;
+  requiresAccommodation: boolean;
+  accommodationPreferences: string;
   updatedAt: string;
 }
 
@@ -157,6 +174,33 @@ export default function EventManagerDashboard() {
     hotelId: '',
     clusterId: ''
   });
+
+  // Team creation form states
+  const [teamForm, setTeamForm] = useState({
+    teamName: '',
+    sport: '',
+    tournamentId: '',
+    specialRequests: ''
+  });
+  
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [currentMember, setCurrentMember] = useState<TeamMember>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneCountryCode: '+91',
+    phoneNumber: '',
+    alternateContact: '',
+    dateOfBirth: '',
+    gender: '',
+    city: '',
+    address: '',
+    position: '',
+    sport: '',
+    requiresAccommodation: false,
+    accommodationPreferences: ''
+  });
+  const [editingMemberIndex, setEditingMemberIndex] = useState<number | null>(null);
 
   // Fetch tournaments
   const { data: tournaments, isLoading: tournamentsLoading } = useQuery({
@@ -482,6 +526,23 @@ export default function EventManagerDashboard() {
     },
   });
 
+  // Team creation mutation
+  const createTeamRequestMutation = useMutation({
+    mutationFn: (teamData: any) => apiRequest('/api/event-manager/team-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(teamData),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/team-approvals/pending'] });
+      toast({ title: 'Team request created successfully' });
+      resetTeamForm();
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error creating team request', description: error.message, variant: 'destructive' });
+    },
+  });
+
   // Logout function
   const handleLogout = async () => {
     try {
@@ -572,6 +633,101 @@ export default function EventManagerDashboard() {
       maxRadius: 10
     });
     setSelectedCluster(null);
+  };
+
+  // Team form handler functions
+  const resetTeamForm = () => {
+    setTeamForm({
+      teamName: '',
+      sport: '',
+      tournamentId: '',
+      specialRequests: ''
+    });
+    setTeamMembers([]);
+    setCurrentMember({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phoneCountryCode: '+91',
+      phoneNumber: '',
+      alternateContact: '',
+      dateOfBirth: '',
+      gender: '',
+      city: '',
+      address: '',
+      position: '',
+      sport: '',
+      requiresAccommodation: false,
+      accommodationPreferences: ''
+    });
+    setEditingMemberIndex(null);
+  };
+
+  const addMemberToTeam = () => {
+    if (!currentMember.firstName || !currentMember.lastName || !currentMember.email || 
+        !currentMember.phoneNumber || !currentMember.gender) {
+      toast({ title: 'Please fill in all required fields', variant: 'destructive' });
+      return;
+    }
+
+    const memberWithSport = { ...currentMember, sport: teamForm.sport };
+
+    if (editingMemberIndex !== null) {
+      const updatedMembers = [...teamMembers];
+      updatedMembers[editingMemberIndex] = memberWithSport;
+      setTeamMembers(updatedMembers);
+      setEditingMemberIndex(null);
+    } else {
+      setTeamMembers([...teamMembers, memberWithSport]);
+    }
+
+    setCurrentMember({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phoneCountryCode: '+91',
+      phoneNumber: '',
+      alternateContact: '',
+      dateOfBirth: '',
+      gender: '',
+      city: '',
+      address: '',
+      position: '',
+      sport: '',
+      requiresAccommodation: false,
+      accommodationPreferences: ''
+    });
+  };
+
+  const removeMemberFromTeam = (index: number) => {
+    setTeamMembers(teamMembers.filter((_, i) => i !== index));
+  };
+
+  const editMember = (index: number) => {
+    setCurrentMember(teamMembers[index]);
+    setEditingMemberIndex(index);
+  };
+
+  const handleSubmitTeamRequest = () => {
+    if (!teamForm.teamName || !teamForm.sport || !teamForm.tournamentId) {
+      toast({ title: 'Please fill in all required team details', variant: 'destructive' });
+      return;
+    }
+
+    if (teamMembers.length === 0) {
+      toast({ title: 'Please add at least one team member', variant: 'destructive' });
+      return;
+    }
+
+    const requestData = {
+      teamName: teamForm.teamName,
+      sport: teamForm.sport,
+      tournamentId: parseInt(teamForm.tournamentId),
+      specialRequests: teamForm.specialRequests || '',
+      teamMembers: teamMembers
+    };
+
+    createTeamRequestMutation.mutate(requestData);
   };
 
   const resetHotelAssignForm = () => {
@@ -738,11 +894,12 @@ export default function EventManagerDashboard() {
       {/* Main Content */}
       <div className="container mx-auto p-6">
         <Tabs defaultValue="tournaments" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="clusters">Hotel Clusters</TabsTrigger>
           <TabsTrigger value="hotels">Assign Hotels</TabsTrigger>
+          <TabsTrigger value="add-team">Add Team</TabsTrigger>
           <TabsTrigger value="team-approvals">Team Approvals</TabsTrigger>
           <TabsTrigger value="rejected-accommodations">Rejected Accommodations</TabsTrigger>
         </TabsList>
@@ -947,6 +1104,244 @@ export default function EventManagerDashboard() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="add-team" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Create New Team</CardTitle>
+              <CardDescription>Create a new team request with multiple players</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Team Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="teamName">Team Name *</Label>
+                  <Input
+                    id="teamName"
+                    value={teamForm.teamName}
+                    onChange={(e) => setTeamForm({...teamForm, teamName: e.target.value})}
+                    placeholder="Enter team name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sport">Sport *</Label>
+                  <Select value={teamForm.sport} onValueChange={(value) => setTeamForm({...teamForm, sport: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sport" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cricket">Cricket</SelectItem>
+                      <SelectItem value="football">Football</SelectItem>
+                      <SelectItem value="tennis">Tennis</SelectItem>
+                      <SelectItem value="badminton">Badminton</SelectItem>
+                      <SelectItem value="volleyball">Volleyball</SelectItem>
+                      <SelectItem value="kabaddi">Kabaddi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="tournament">Tournament *</Label>
+                <Select value={teamForm.tournamentId} onValueChange={(value) => setTeamForm({...teamForm, tournamentId: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select tournament" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tournaments?.map((tournament: Tournament) => (
+                      <SelectItem key={tournament.id} value={tournament.id.toString()}>
+                        {tournament.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="specialRequests">Special Requests</Label>
+                <Textarea
+                  id="specialRequests"
+                  value={teamForm.specialRequests}
+                  onChange={(e) => setTeamForm({...teamForm, specialRequests: e.target.value})}
+                  placeholder="Any special requirements or requests"
+                />
+              </div>
+
+              {/* Team Members Section */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <h3 className="font-semibold mb-4">Team Members</h3>
+                
+                {/* Add/Edit Member Form */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        value={currentMember.firstName}
+                        onChange={(e) => setCurrentMember({...currentMember, firstName: e.target.value})}
+                        placeholder="Enter first name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        value={currentMember.lastName}
+                        onChange={(e) => setCurrentMember({...currentMember, lastName: e.target.value})}
+                        placeholder="Enter last name"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={currentMember.email}
+                        onChange={(e) => setCurrentMember({...currentMember, email: e.target.value})}
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phoneNumber">Phone Number *</Label>
+                      <div className="flex">
+                        <Select value={currentMember.phoneCountryCode} onValueChange={(value) => setCurrentMember({...currentMember, phoneCountryCode: value})}>
+                          <SelectTrigger className="w-20">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="+91">+91</SelectItem>
+                            <SelectItem value="+1">+1</SelectItem>
+                            <SelectItem value="+44">+44</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          id="phoneNumber"
+                          value={currentMember.phoneNumber}
+                          onChange={(e) => setCurrentMember({...currentMember, phoneNumber: e.target.value})}
+                          placeholder="Enter phone number"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="gender">Gender *</Label>
+                      <Select value={currentMember.gender} onValueChange={(value) => setCurrentMember({...currentMember, gender: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="position">Position</Label>
+                      <Input
+                        id="position"
+                        value={currentMember.position}
+                        onChange={(e) => setCurrentMember({...currentMember, position: e.target.value})}
+                        placeholder="Enter position/role"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={currentMember.city}
+                        onChange={(e) => setCurrentMember({...currentMember, city: e.target.value})}
+                        placeholder="Enter city"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        value={currentMember.dateOfBirth}
+                        onChange={(e) => setCurrentMember({...currentMember, dateOfBirth: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="requiresAccommodation"
+                      checked={currentMember.requiresAccommodation}
+                      onChange={(e) => setCurrentMember({...currentMember, requiresAccommodation: e.target.checked})}
+                    />
+                    <Label htmlFor="requiresAccommodation">Requires Accommodation</Label>
+                  </div>
+
+                  {currentMember.requiresAccommodation && (
+                    <div>
+                      <Label htmlFor="accommodationPreferences">Accommodation Preferences</Label>
+                      <Textarea
+                        id="accommodationPreferences"
+                        value={currentMember.accommodationPreferences}
+                        onChange={(e) => setCurrentMember({...currentMember, accommodationPreferences: e.target.value})}
+                        placeholder="Any specific accommodation preferences"
+                      />
+                    </div>
+                  )}
+
+                  <Button onClick={addMemberToTeam} className="w-full">
+                    {editingMemberIndex !== null ? 'Update Member' : 'Add Member'}
+                  </Button>
+                </div>
+
+                {/* Display Team Members */}
+                {teamMembers.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="font-semibold mb-2">Team Members ({teamMembers.length})</h4>
+                    <div className="space-y-2">
+                      {teamMembers.map((member, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white rounded border">
+                          <div className="flex-1">
+                            <div className="font-medium">{member.firstName} {member.lastName}</div>
+                            <div className="text-sm text-gray-600">{member.email} • {member.phoneCountryCode} {member.phoneNumber}</div>
+                            <div className="text-sm text-gray-600">{member.position} • {member.gender}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => editMember(index)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => removeMemberFromTeam(index)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <div className="border-t pt-6">
+                <Button 
+                  onClick={handleSubmitTeamRequest}
+                  disabled={createTeamRequestMutation.isPending}
+                  className="w-full"
+                >
+                  {createTeamRequestMutation.isPending ? 'Creating Team Request...' : 'Create Team'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="team-approvals" className="space-y-4">

@@ -1247,6 +1247,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Event Manager team creation route
+  app.post('/api/event-manager/team-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'event_manager') {
+        return res.status(403).json({ message: "Access denied - Event Managers only" });
+      }
+      
+      const { teamName, sport, tournamentId, specialRequests, teamMembers } = req.body;
+      
+      // Create team request with pre-approved status since Event Manager is creating it
+      const teamRequest = await storage.createTeamRequest({
+        teamManagerId: userId,
+        teamName,
+        sport,
+        tournamentId,
+        specialRequests,
+        status: 'approved',
+        approvedBy: userId,
+        approvedAt: new Date()
+      });
+      
+      // Process team members
+      const createdMembers = [];
+      for (const member of teamMembers) {
+        // Check if user exists with this email
+        const existingUser = await storage.getUserByEmail(member.email);
+        
+        const teamMember = await storage.createTeamMember({
+          teamRequestId: teamRequest.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          email: member.email,
+          phoneCountryCode: member.phoneCountryCode,
+          phoneNumber: member.phoneNumber,
+          alternateContact: member.alternateContact,
+          dateOfBirth: member.dateOfBirth,
+          gender: member.gender,
+          city: member.city,
+          address: member.address,
+          position: member.position,
+          sport: member.sport,
+          requiresAccommodation: member.requiresAccommodation || false,
+          accommodationPreferences: member.accommodationPreferences,
+          userId: existingUser?.id,
+          accountCreated: !!existingUser
+        });
+        
+        createdMembers.push(teamMember);
+        
+        // If user exists, update their profile with latest info
+        if (existingUser) {
+          await storage.updateUserProfile(existingUser.id, {
+            firstName: member.firstName,
+            lastName: member.lastName,
+            mobileCountryCode: member.phoneCountryCode,
+            mobileNumber: member.phoneNumber,
+            whatsappCountryCode: member.phoneCountryCode,
+            whatsappNumber: member.phoneNumber
+          });
+        } else {
+          // Create a new user account for the team member
+          const newUser = await storage.createUser({
+            email: member.email,
+            password: 'Test@123',
+            firstName: member.firstName,
+            lastName: member.lastName,
+            role: 'player',
+            mobileCountryCode: member.phoneCountryCode,
+            mobileNumber: member.phoneNumber,
+            whatsappCountryCode: member.phoneCountryCode,
+            whatsappNumber: member.phoneNumber,
+            emailVerified: true
+          });
+          
+          // Update team member with user ID
+          await storage.updateTeamMember(teamMember.id, { userId: newUser.id });
+        }
+        
+        // Create accommodation request if needed
+        if (member.requiresAccommodation) {
+          await storage.createPlayerAccommodationRequest({
+            playerUserId: existingUser?.id || createdMembers[createdMembers.length - 1].userId,
+            teamRequestId: teamRequest.id,
+            playerName: `${member.firstName} ${member.lastName}`,
+            playerEmail: member.email,
+            playerPhone: `${member.phoneCountryCode} ${member.phoneNumber}`,
+            accommodationPreferences: member.accommodationPreferences,
+            status: 'pending'
+          });
+        }
+      }
+      
+      res.json({ teamRequest, members: createdMembers });
+    } catch (error) {
+      console.error("Error creating team request:", error);
+      res.status(500).json({ message: "Failed to create team request" });
+    }
+  });
+
   // Event Manager and Admin routes for team approval
   app.get('/api/team-approvals/pending', requireAuth, async (req: any, res) => {
     try {
