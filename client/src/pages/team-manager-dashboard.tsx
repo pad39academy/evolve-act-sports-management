@@ -343,6 +343,48 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
               </Button>
             </div>
 
+            {/* Team Bulk Check-in QR Code */}
+            {confirmedRequests.length > 0 && (
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Hotel Manager Bulk Check-in QR Code
+                </h4>
+                <div className="text-sm text-blue-700 mb-3">
+                  Hotel managers can scan this QR code to check in all team members at once
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <QRCodeDisplay 
+                      qrData={`BULK_CHECKIN_${teamRequest.id}_${teamRequest.teamName}_${confirmedRequests.length}_MEMBERS`}
+                      isLoading={accommodationLoading}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-blue-800 mb-1">
+                      Team: {teamRequest.teamName}
+                    </div>
+                    <div className="text-sm text-blue-700 mb-2">
+                      Members to check in: {confirmedRequests.filter(req => req.checkinStatus === 'pending').length}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadQRCode(
+                        `BULK_CHECKIN_${teamRequest.id}_${teamRequest.teamName}_${confirmedRequests.length}_MEMBERS`,
+                        `${teamRequest.teamName}_BulkCheckin`,
+                        `BULK_${teamRequest.id}`
+                      )}
+                      className="text-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Download Bulk Check-in QR
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Accommodation Requests List */}
             <div className="space-y-3">
               {accommodationRequests?.map((request: AccommodationRequest) => (

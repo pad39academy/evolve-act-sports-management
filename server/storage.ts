@@ -1107,6 +1107,19 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(playerAccommodationRequests.id, accommodationId));
   }
+
+  // Get accommodation requests by team
+  async getPlayerAccommodationRequestsByTeam(teamId: number): Promise<PlayerAccommodationRequest[]> {
+    return await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(eq(playerAccommodationRequests.teamRequestId, teamId));
+  }
+
+  // Method alias for bulk operations
+  async bulkPlayerCheckIn(teamRequestId: number, checkedInBy: number): Promise<PlayerAccommodationRequest[]> {
+    return await this.bulkCheckInPlayers(teamRequestId, checkedInBy);
+  }
 }
 
 export const storage = new DatabaseStorage();

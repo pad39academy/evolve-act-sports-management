@@ -1648,6 +1648,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Hotel Manager bulk check-in QR code processing
+  app.post('/api/hotel-manager/process-bulk-qr', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { qrData } = req.body;
+      
+      // Parse QR code data: BULK_CHECKIN_${teamId}_${teamName}_${memberCount}_MEMBERS
+      const qrMatch = qrData.match(/^BULK_CHECKIN_(\d+)_(.+)_(\d+)_MEMBERS$/);
+      if (!qrMatch) {
+        return res.status(400).json({ message: "Invalid QR code format" });
+      }
+      
+      const teamId = parseInt(qrMatch[1]);
+      const teamName = qrMatch[2];
+      const memberCount = parseInt(qrMatch[3]);
+      
+      // Get hotel manager's hotels
+      const hotels = await storage.getHotelsByManager(userId);
+      const hotelIds = hotels.map(h => h.id);
+      
+      // Get all accommodation requests for this team that are assigned to this hotel manager's hotels
+      const accommodationRequests = await storage.getPlayerAccommodationRequestsByTeam(teamId);
+      const relevantRequests = accommodationRequests.filter(req => 
+        req.hotelId && hotelIds.includes(req.hotelId) && 
+        req.status === 'confirmed' && 
+        req.checkinStatus === 'pending'
+      );
+      
+      if (relevantRequests.length === 0) {
+        return res.status(404).json({ message: "No pending check-ins found for this team at your hotels" });
+      }
+      
+      // Bulk check-in all relevant requests
+      const checkedInRequests = [];
+      for (const request of relevantRequests) {
+        try {
+          await storage.bulkPlayerCheckIn(teamId, userId);
+          checkedInRequests.push(request);
+        } catch (error) {
+          console.error("Error checking in request:", request.id, error);
+        }
+      }
+      
+      res.json({
+        message: `Successfully checked in ${checkedInRequests.length} team members`,
+        teamName,
+        checkedInCount: checkedInRequests.length,
+        memberCount: relevantRequests.length
+      });
+    } catch (error) {
+      console.error("Error processing bulk QR code:", error);
+      res.status(500).json({ message: "Failed to process bulk check-in" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

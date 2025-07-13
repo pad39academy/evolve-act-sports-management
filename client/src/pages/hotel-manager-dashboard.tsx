@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit2, Trash2, MapPin, Settings, CheckCircle, XCircle, Clock, Hotel, BedDouble, Users, Calendar, DollarSign, Star, AlertCircle, LogOut } from "lucide-react";
+import { Plus, Edit2, Trash2, MapPin, Settings, CheckCircle, XCircle, Clock, Hotel, BedDouble, Users, Calendar, DollarSign, Star, AlertCircle, LogOut, QrCode, Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -411,6 +411,47 @@ export default function HotelManagerDashboard() {
       });
     },
   });
+
+  // QR Code scanning state and mutation
+  const [qrCodeInput, setQrCodeInput] = useState('');
+  const [qrScanResult, setQrScanResult] = useState<any>(null);
+
+  const processQRCodeMutation = useMutation({
+    mutationFn: async (qrData: string) => {
+      return await apiRequest('/api/hotel-manager/process-bulk-qr', {
+        method: 'POST',
+        body: JSON.stringify({ qrData }),
+      });
+    },
+    onSuccess: (result) => {
+      setQrScanResult(result);
+      toast({
+        title: "QR Code Processed",
+        description: `Successfully checked in ${result.checkedInCount} team members for ${result.teamName}`,
+      });
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/hotel-manager/accommodation-requests'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "QR Code Error",
+        description: error.message || "Failed to process QR code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleQRCodeScan = () => {
+    if (!qrCodeInput.trim()) {
+      toast({
+        title: "Input Required",
+        description: "Please enter a QR code to scan",
+        variant: "destructive",
+      });
+      return;
+    }
+    processQRCodeMutation.mutate(qrCodeInput);
+  };
 
   // Handle logout
   const handleLogout = async () => {
@@ -984,11 +1025,12 @@ export default function HotelManagerDashboard() {
             </div>
 
             <Tabs defaultValue="rooms" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="rooms">Room Categories</TabsTrigger>
                 <TabsTrigger value="requests">Booking Requests</TabsTrigger>
                 <TabsTrigger value="pending">Pending Approval</TabsTrigger>
                 <TabsTrigger value="accommodation">Accommodation Requests</TabsTrigger>
+                <TabsTrigger value="qrscanner">QR Scanner</TabsTrigger>
               </TabsList>
 
               {/* Room Categories Tab */}
@@ -1395,6 +1437,78 @@ export default function HotelManagerDashboard() {
                     </Card>
                   )}
                 </div>
+              </TabsContent>
+
+              {/* QR Scanner Tab */}
+              <TabsContent value="qrscanner" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <QrCode className="h-5 w-5" />
+                      Bulk Team Check-in QR Scanner
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 className="font-medium text-blue-900 mb-2">How to use QR Scanner</h3>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                          <li>• Team managers can generate bulk check-in QR codes for their teams</li>
+                          <li>• Scan or paste the QR code data to check in all team members at once</li>
+                          <li>• Only team members assigned to your hotels will be checked in</li>
+                          <li>• QR codes contain team information and member count for verification</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="qrCodeInput">QR Code Data</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id="qrCodeInput"
+                              value={qrCodeInput}
+                              onChange={(e) => setQrCodeInput(e.target.value)}
+                              placeholder="Paste QR code data here (e.g., BULK_CHECKIN_7_Chennai Challengers_2_MEMBERS)"
+                              className="flex-1"
+                            />
+                            <Button
+                              onClick={handleQRCodeScan}
+                              disabled={processQRCodeMutation.isPending}
+                              className="flex items-center gap-2"
+                            >
+                              <Scan className="h-4 w-4" />
+                              {processQRCodeMutation.isPending ? 'Processing...' : 'Scan QR'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {qrScanResult && (
+                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <h4 className="font-medium text-green-900">Bulk Check-in Successful</h4>
+                            </div>
+                            <div className="text-sm text-green-800">
+                              <p><strong>Team:</strong> {qrScanResult.teamName}</p>
+                              <p><strong>Members Checked In:</strong> {qrScanResult.checkedInCount}</p>
+                              <p><strong>Total Members:</strong> {qrScanResult.memberCount}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-2">Sample QR Code Format</h4>
+                          <code className="text-sm bg-white p-2 rounded border block">
+                            BULK_CHECKIN_7_Chennai Challengers_2_MEMBERS
+                          </code>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Format: BULK_CHECKIN_[TeamID]_[TeamName]_[MemberCount]_MEMBERS
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
