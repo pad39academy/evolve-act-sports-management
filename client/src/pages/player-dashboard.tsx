@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
+import QRCode from 'qrcode';
 import { 
   User, 
   LogOut, 
@@ -27,6 +28,77 @@ export default function PlayerDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
+  const [qrImageCache, setQrImageCache] = useState<{[key: string]: string}>({});
+
+  // Generate QR code image
+  const generateQRImage = async (qrCode: string, confirmationCode: string) => {
+    const cacheKey = `${confirmationCode}-${qrCode}`;
+    if (qrImageCache[cacheKey]) {
+      return qrImageCache[cacheKey];
+    }
+
+    try {
+      const qrData = `Hotel Booking - ${confirmationCode} - ${qrCode}`;
+      const qrImageUrl = await QRCode.toDataURL(qrData, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrImageCache(prev => ({ ...prev, [cacheKey]: qrImageUrl }));
+      return qrImageUrl;
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      return null;
+    }
+  };
+
+  // QR Code display component
+  const QRCodeDisplay = ({ qrCode, confirmationCode }: { qrCode: string, confirmationCode: string }) => {
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    
+    useEffect(() => {
+      generateQRImage(qrCode, confirmationCode).then(setImageUrl);
+    }, [qrCode, confirmationCode]);
+
+    if (!imageUrl) {
+      return (
+        <div className="flex items-center justify-center w-48 h-48 bg-gray-100 rounded-lg">
+          <div className="text-center">
+            <QrCode className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">Generating QR...</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center space-y-3">
+        <div className="bg-white p-4 rounded-lg border-2 border-gray-200 shadow-sm">
+          <img 
+            src={imageUrl} 
+            alt={`QR Code for booking ${confirmationCode}`}
+            className="w-40 h-40 object-contain"
+          />
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-500 mb-2">Scan to view booking details</p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadQRCode(qrCode, confirmationCode)}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download QR Code
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   // Fetch user data
   const { data: userData, isLoading: userLoading } = useQuery({
@@ -49,28 +121,37 @@ export default function PlayerDashboard() {
   };
 
   // QR Code download function
-  const downloadQRCode = (qrCode: string, confirmationCode: string) => {
-    const qrData = `
-Hotel Booking Confirmation
-Confirmation Code: ${confirmationCode}
-QR Code: ${qrCode}
-Generated: ${new Date().toLocaleString()}
-    `.trim();
-    
-    const blob = new Blob([qrData], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hotel-booking-${confirmationCode}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "QR Code Downloaded",
-      description: "Your booking QR code has been downloaded successfully.",
-    });
+  const downloadQRCode = async (qrCode: string, confirmationCode: string) => {
+    try {
+      const qrData = `Hotel Booking - ${confirmationCode} - ${qrCode}`;
+      const qrImageUrl = await QRCode.toDataURL(qrData, {
+        width: 512,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      const a = document.createElement('a');
+      a.href = qrImageUrl;
+      a.download = `hotel-booking-qr-${confirmationCode}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast({
+        title: "QR Code Downloaded",
+        description: "Your booking QR code image has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast({
+        title: "Download Error",
+        description: "Failed to download QR code. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Player checkout mutation
@@ -355,22 +436,11 @@ Generated: ${new Date().toLocaleString()}
                             {request.qrCode && (
                               <div className="text-sm">
                                 <span className="font-medium">QR Code:</span>
-                                <div className="mt-2 p-3 bg-white rounded-lg border">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <QrCode className="h-4 w-4 text-gray-500" />
-                                      <code className="text-xs font-mono break-all">{request.qrCode}</code>
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => downloadQRCode(request.qrCode, request.confirmationCode)}
-                                      className="ml-2"
-                                    >
-                                      <Download className="h-4 w-4 mr-1" />
-                                      Download
-                                    </Button>
-                                  </div>
+                                <div className="mt-3 flex justify-center">
+                                  <QRCodeDisplay 
+                                    qrCode={request.qrCode} 
+                                    confirmationCode={request.confirmationCode} 
+                                  />
                                 </div>
                               </div>
                             )}
@@ -634,20 +704,12 @@ Generated: ${new Date().toLocaleString()}
                         {/* Final QR Code for completed bookings */}
                         {request.qrCode && (
                           <div className="mt-6 p-4 bg-white rounded-lg border">
-                            <h5 className="font-medium text-gray-900 mb-2">Final QR Code</h5>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <QrCode className="h-4 w-4 text-gray-500" />
-                                <code className="text-xs font-mono break-all">{request.qrCode}</code>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => downloadQRCode(request.qrCode, request.confirmationCode)}
-                              >
-                                <Download className="h-4 w-4 mr-1" />
-                                Download
-                              </Button>
+                            <h5 className="font-medium text-gray-900 mb-3">Final QR Code</h5>
+                            <div className="flex justify-center">
+                              <QRCodeDisplay 
+                                qrCode={request.qrCode} 
+                                confirmationCode={request.confirmationCode} 
+                              />
                             </div>
                           </div>
                         )}
