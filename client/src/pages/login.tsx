@@ -29,17 +29,22 @@ export default function Login() {
   const onSubmit = async (data: LoginData) => {
     setIsLoading(true);
     try {
+      console.log("Submitting login data:", data);
       const result = await loginUser(data);
+      console.log("Login result:", result);
+      
       if (result.success) {
         toast({
           title: "Login Successful",
           description: `Welcome back, ${result.user.firstName}!`,
         });
+        console.log("Redirecting to dashboard...");
         setLocation("/dashboard");
       } else {
         throw new Error(result.message);
       }
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
         description: error.message || "The given username or password is not matching with our details.",
