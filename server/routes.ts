@@ -1095,7 +1095,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             whatsappNumber: member.phoneNumber
           });
         } else {
-          // Create account creation request for new users
+          // Create new user account automatically for team members
+          const newUser = await storage.createUser({
+            email: member.email,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            password: '$2b$10$02vKksER1rV6RrohQNdF1e1TcK01Y2KayhlA8lm5qjr781yAQ7ajC', // Default password hash for "Test@123"
+            role: 'player',
+            mobileCountryCode: member.phoneCountryCode,
+            mobileNumber: member.phoneNumber,
+            whatsappCountryCode: member.phoneCountryCode,
+            whatsappNumber: member.phoneNumber,
+            organization: 'Tamilnadu Sports Association',
+            isVerified: 'true'
+          });
+
+          // Update the team member with the newly created user ID
+          await storage.updateTeamMember(teamMember.id, {
+            userId: newUser.id,
+            accountCreated: true
+          });
+
+          // Create account creation request for tracking/notification purposes
           await storage.createAccountCreationRequest({
             teamMemberId: teamMember.id,
             email: member.email,
