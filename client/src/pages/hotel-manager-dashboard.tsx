@@ -499,6 +499,8 @@ export default function HotelManagerDashboard() {
       contactInfo,
       // For pay-per-use hotels, available rooms should equal total rooms initially
       availableRooms: hotelForm.bookingType === 'pay_per_use' ? hotelForm.totalRooms : hotelForm.availableRooms,
+      // For pay-per-use hotels, auto-approve should always be true
+      autoApproveBookings: hotelForm.bookingType === 'pay_per_use' ? true : hotelForm.autoApproveBookings,
     };
     
     if (editingHotel) {
@@ -801,7 +803,11 @@ export default function HotelManagerDashboard() {
                   </div>
                   <div>
                     <Label htmlFor="bookingType">Booking Type</Label>
-                    <Select value={hotelForm.bookingType} onValueChange={(value) => setHotelForm({ ...hotelForm, bookingType: value })}>
+                    <Select value={hotelForm.bookingType} onValueChange={(value) => setHotelForm({ 
+                      ...hotelForm, 
+                      bookingType: value,
+                      autoApproveBookings: value === 'pay_per_use' ? true : hotelForm.autoApproveBookings
+                    })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select booking type" />
                       </SelectTrigger>
@@ -856,13 +862,13 @@ export default function HotelManagerDashboard() {
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="autoApprove"
-                      checked={hotelForm.autoApproveBookings}
+                      checked={hotelForm.bookingType === 'pay_per_use' ? true : hotelForm.autoApproveBookings}
                       onCheckedChange={(checked) => setHotelForm({ ...hotelForm, autoApproveBookings: checked })}
                       disabled={hotelForm.bookingType === 'pay_per_use'}
                     />
                     <Label htmlFor="autoApprove">Auto-approve booking requests</Label>
                     {hotelForm.bookingType === 'pay_per_use' && (
-                      <span className="text-sm text-gray-500">(Always enabled for pay per use)</span>
+                      <span className="text-sm text-green-600">(Always YES for pay per use)</span>
                     )}
                   </div>
                   <div className="flex justify-end space-x-2 pt-4">
