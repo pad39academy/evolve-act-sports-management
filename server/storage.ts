@@ -860,7 +860,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(playerAccommodationRequests.id, accommodationId))
       .returning();
 
+    // For pay-per-use hotels, decrease available rooms when confirmed
+    if (updatedRequest.hotelId && updatedRequest.roomCategoryId) {
+      await this.decreaseRoomAvailability(updatedRequest.hotelId, updatedRequest.roomCategoryId);
+    }
+
     return updatedRequest;
+  }
+
+  // Helper method to decrease room availability for pay-per-use hotels
+  async decreaseRoomAvailability(hotelId: number, roomCategoryId: number): Promise<void> {
+    const hotel = await this.getHotelById(hotelId);
+    if (hotel?.bookingType === 'pay_per_use') {
+      // Decrease available rooms in the room category
+      await db
+        .update(roomCategories)
+        .set({
+          availableRooms: sql`${roomCategories.availableRooms} - 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(roomCategories.id, roomCategoryId));
+      
+      // Also decrease available rooms in the hotel
+      await db
+        .update(hotels)
+        .set({
+          availableRooms: sql`${hotels.availableRooms} - 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(hotels.id, hotelId));
+    }
+  }
+
+  // Helper method to increase room availability when accommodation is cancelled
+  async increaseRoomAvailability(hotelId: number, roomCategoryId: number): Promise<void> {
+    const hotel = await this.getHotelById(hotelId);
+    if (hotel?.bookingType === 'pay_per_use') {
+      // Increase available rooms in the room category
+      await db
+        .update(roomCategories)
+        .set({
+          availableRooms: sql`${roomCategories.availableRooms} + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(roomCategories.id, roomCategoryId));
+      
+      // Also increase available rooms in the hotel
+      await db
+        .update(hotels)
+        .set({
+          availableRooms: sql`${hotels.availableRooms} + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(hotels.id, hotelId));
+    }
   }
 }
 

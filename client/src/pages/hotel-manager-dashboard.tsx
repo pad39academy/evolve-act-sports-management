@@ -474,6 +474,8 @@ export default function HotelManagerDashboard() {
     const submitData = {
       ...hotelForm,
       contactInfo,
+      // For pay-per-use hotels, available rooms should equal total rooms initially
+      availableRooms: hotelForm.bookingType === 'pay_per_use' ? hotelForm.totalRooms : hotelForm.availableRooms,
     };
     
     if (editingHotel) {
@@ -485,10 +487,27 @@ export default function HotelManagerDashboard() {
 
   const handleRoomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // For pay-per-use hotels, calculate total rooms and set available rooms equal to total
+    const selectedHotel = hotels?.find(h => h.id === selectedHotelId);
+    const isPayPerUse = selectedHotel?.bookingType === 'pay_per_use';
+    
+    let submitData = { ...roomForm };
+    
+    if (isPayPerUse) {
+      // For pay-per-use hotels, total rooms = sum of all sharing types
+      const totalRooms = roomForm.singleSharingRooms + roomForm.twinSharingRooms + roomForm.tripleSharingRooms;
+      submitData = {
+        ...roomForm,
+        totalRooms,
+        availableRooms: totalRooms, // All rooms are available initially
+      };
+    }
+    
     if (editingRoom) {
-      updateRoomMutation.mutate({ id: editingRoom.id, data: roomForm });
+      updateRoomMutation.mutate({ id: editingRoom.id, data: submitData });
     } else {
-      createRoomMutation.mutate(roomForm);
+      createRoomMutation.mutate(submitData);
     }
   };
 
@@ -715,7 +734,13 @@ export default function HotelManagerDashboard() {
                         value={hotelForm.availableRooms}
                         onChange={(e) => setHotelForm({ ...hotelForm, availableRooms: parseInt(e.target.value) || 0 })}
                         required
+                        disabled={hotelForm.bookingType === 'pay_per_use'}
                       />
+                      {hotelForm.bookingType === 'pay_per_use' && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          For pay-per-use hotels, available rooms automatically equal total rooms initially
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div>
