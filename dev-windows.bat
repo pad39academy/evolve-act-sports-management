@@ -12,4 +12,4 @@ set NODE_ENV=development
 echo Starting development server...
 echo Environment: %NODE_ENV%
 echo.
-tsx server/index.ts
+node_modules\.bin\tsx server/index.ts

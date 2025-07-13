@@ -94,9 +94,19 @@ Before setting up the project on your Windows laptop, ensure you have:
    ```cmd
    npm run db:push
    ```
-2. If you want sample data (use Windows batch script):
+2. If you want sample data (multiple options):
    ```cmd
+   # Option 1: Windows batch script
    populate-windows.bat
+   
+   # Option 2: PowerShell script
+   populate-windows-alt.ps1
+   
+   # Option 3: Node.js script
+   node populate-simple.js
+   
+   # Option 4: Direct npx command
+   npx tsx server/populateSampleData.ts
    ```
 
 ### Step 9: Start the Application
@@ -243,16 +253,31 @@ Configure Git for Windows:
 git config --global core.autocrlf true
 ```
 
-#### 8. Missing populate-sample-data Script
-If `npm run populate-sample-data` fails:
-1. Use the Windows batch script instead:
+#### 8. 'tsx' is not recognized Error
+If you get `'tsx' is not recognized` error:
+1. **Use Node.js script** (most reliable):
    ```cmd
-   populate-windows.bat
+   node populate-simple.js
    ```
-2. Or run directly:
+2. **Use PowerShell script**:
    ```cmd
-   set NODE_ENV=development
-   tsx server/populateSampleData.ts
+   populate-windows-alt.ps1
+   ```
+3. **Use npx** (if available):
+   ```cmd
+   npx tsx server/populateSampleData.ts
+   ```
+4. **Use full path to tsx**:
+   ```cmd
+   node_modules\.bin\tsx server/populateSampleData.ts
+   ```
+
+#### 9. Missing populate-sample-data Script
+If `npm run populate-sample-data` fails:
+1. Use any of the alternative scripts above
+2. Check if dependencies are installed:
+   ```cmd
+   npm install
    ```
 
 ## 📊 Performance Optimization

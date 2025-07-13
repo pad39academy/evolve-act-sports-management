@@ -10,7 +10,7 @@ set NODE_ENV=development
 
 :: Run the populate script
 echo Running sample data population...
-tsx server/populateSampleData.ts
+node_modules\.bin\tsx server/populateSampleData.ts
 
 if %errorlevel% neq 0 (
     echo.
