@@ -24,7 +24,6 @@ export default function PlayerDashboard() {
   // Fetch user data
   const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: ['/api/auth/user'],
-    onSuccess: (data) => setUser(data),
     retry: false
   });
 

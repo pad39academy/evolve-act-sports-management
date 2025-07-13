@@ -782,12 +782,56 @@ export class DatabaseStorage implements IStorage {
       .where(eq(playerAccommodationRequests.status, 'hotel_rejected'));
   }
 
-  async getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]> {
-    return await db
+  async getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<any[]> {
+    // First get the accommodation requests for this player
+    const accommodationRequests = await db
       .select()
       .from(playerAccommodationRequests)
       .innerJoin(teamMembers, eq(playerAccommodationRequests.teamMemberId, teamMembers.id))
       .where(eq(teamMembers.userId, playerId));
+
+    // Then enrich each request with related data
+    const enrichedRequests = await Promise.all(accommodationRequests.map(async (request: any) => {
+      const accomRequest = request.player_accommodation_requests;
+      const teamMember = request.team_members;
+      
+      // Get team request info
+      const teamRequest = await db
+        .select()
+        .from(teamRequests)
+        .where(eq(teamRequests.id, accomRequest.teamRequestId))
+        .then(results => results[0]);
+      
+      // Get hotel info if assigned
+      let hotel = null;
+      if (accomRequest.hotelId) {
+        hotel = await db
+          .select()
+          .from(hotels)
+          .where(eq(hotels.id, accomRequest.hotelId))
+          .then(results => results[0]);
+      }
+      
+      // Get room category info if assigned
+      let roomCategory = null;
+      if (accomRequest.roomCategoryId) {
+        roomCategory = await db
+          .select()
+          .from(roomCategories)
+          .where(eq(roomCategories.id, accomRequest.roomCategoryId))
+          .then(results => results[0]);
+      }
+      
+      return {
+        ...accomRequest,
+        teamMemberName: `${teamMember.firstName} ${teamMember.lastName}`,
+        teamName: teamRequest?.teamName || null,
+        hotelName: hotel?.name || null,
+        roomCategoryName: roomCategory?.categoryName || null,
+      };
+    }));
+
+    return enrichedRequests;
   }
 
   async autoAssignHotelToPlayerAccommodation(accommodationId: number, clusterId: number, assignedBy: number): Promise<PlayerAccommodationRequest> {
