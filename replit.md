@@ -206,7 +206,17 @@ The system includes 21 pre-approved sample users across all roles:
 - **Karthik Chidambaram** (karthik.chidambaram@example.com) - Player
 - **Anand Sundaram** (anand.sundaram@example.com) - Hotel Manager
 
-## Recent Changes (July 12, 2025)
+## Recent Changes (July 13, 2025)
+
+### Player-Level Accommodation System Implementation - IN PROGRESS ⚠️
+- **Database Schema Updates** - Added player_accommodation_requests table with complete workflow fields
+- **Team Member Accommodation Fields** - Moved accommodation preferences from team level to individual player level
+- **UI Updates** - Updated team manager dashboard to include accommodation checkbox and preferences per player
+- **Enhanced Team Approval Process** - Team approval now creates accommodation requests for players who need them
+- **Event Manager Hotel Assignment** - Added accommodation assignment dialog for hotel and room category selection
+- **Hotel Manager Accommodation Review** - API routes for hotel managers to approve/reject individual player requests
+- **Player Accommodation Dashboard** - Routes for players to view their accommodation booking status
+- **Complete Workflow Design** - Team approval → accommodation request → hotel assignment → hotel approval → confirmation
 
 ### Team Management System Implementation - COMPLETED ✅
 - **Complete Team Manager Dashboard** - Fully functional with team creation and multi-player registration
@@ -244,8 +254,11 @@ The system includes 21 pre-approved sample users across all roles:
 - 8 sample hotels assigned to 3 hotel managers
 - 7 room categories with pricing and amenities
 - 33+ booking requests for comprehensive testing
-- 5 team requests created with multi-player registration
+- 7 team requests created with multi-player registration
 - Team approval workflow tested with both approval and rejection scenarios
+- New player_accommodation_requests table for individual player hotel assignments
+- Accommodation preferences moved from team level to individual player level
+- Sample team #7 (Doblex) has player with accommodation requirement for testing
 
 ### Hotel Manager Dashboard Features
 - **Hotel Management**: Create, edit, delete hotels with detailed information

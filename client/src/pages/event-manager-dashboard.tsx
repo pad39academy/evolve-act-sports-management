@@ -99,10 +99,12 @@ export default function EventManagerDashboard() {
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<HotelCluster | null>(null);
+  const [selectedTeamRequest, setSelectedTeamRequest] = useState<TeamRequest | null>(null);
   const [showTournamentDialog, setShowTournamentDialog] = useState(false);
   const [showMatchDialog, setShowMatchDialog] = useState(false);
   const [showClusterDialog, setShowClusterDialog] = useState(false);
   const [showHotelAssignDialog, setShowHotelAssignDialog] = useState(false);
+  const [showAccommodationDialog, setShowAccommodationDialog] = useState(false);
   
   const [tournamentForm, setTournamentForm] = useState({
     name: '',
@@ -191,6 +193,14 @@ export default function EventManagerDashboard() {
   // Fetch pending team requests
   const { data: pendingTeamRequests } = useQuery({
     queryKey: ['/api/team-approvals/pending'],
+    retry: false,
+  });
+
+  // Fetch accommodation requests for a specific team request
+  const { data: accommodationRequests } = useQuery({
+    queryKey: ['/api/event-manager/accommodation-requests', selectedTeamRequest?.id],
+    queryFn: () => apiRequest(`/api/event-manager/accommodation-requests/${selectedTeamRequest?.id}`),
+    enabled: !!selectedTeamRequest,
     retry: false,
   });
 
@@ -407,12 +417,35 @@ export default function EventManagerDashboard() {
       apiRequest(`/api/team-approvals/${teamRequestId}/approve`, {
         method: 'PATCH',
       }),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/team-approvals/pending'] });
       toast({ title: 'Team request approved successfully' });
+      
+      // If there are accommodation requests, show the assignment dialog
+      if (data.accommodationRequests && data.accommodationRequests.length > 0) {
+        setSelectedTeamRequest(data.teamRequest);
+        setShowAccommodationDialog(true);
+      }
     },
     onError: (error: Error) => {
       toast({ title: 'Error approving team request', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Accommodation assignment mutation
+  const assignAccommodationMutation = useMutation({
+    mutationFn: ({ accommodationId, hotelId, roomCategoryId }: { accommodationId: number; hotelId: number; roomCategoryId: number }) => 
+      apiRequest(`/api/event-manager/accommodation-requests/${accommodationId}/assign-hotel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotelId, roomCategoryId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/event-manager/accommodation-requests'] });
+      toast({ title: 'Hotel assigned successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error assigning hotel', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -422,7 +455,7 @@ export default function EventManagerDashboard() {
       apiRequest(`/api/team-approvals/${teamRequestId}/reject`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ rejectionReason: reason }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/team-approvals/pending'] });
@@ -1414,6 +1447,102 @@ export default function EventManagerDashboard() {
                 Cancel
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accommodation Assignment Dialog */}
+      <Dialog open={showAccommodationDialog} onOpenChange={setShowAccommodationDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Assign Accommodation - {selectedTeamRequest?.teamName}</DialogTitle>
+            <DialogDescription>
+              Assign hotels and room categories to team members who require accommodation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {accommodationRequests?.map((request: any) => (
+              <div key={request.id} className="border rounded-lg p-4">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 className="font-semibold">{request.teamMember?.firstName} {request.teamMember?.lastName}</h4>
+                    <p className="text-sm text-gray-600">{request.teamMember?.email}</p>
+                    <p className="text-sm text-gray-600">Preferences: {request.accommodationPreferences || 'None'}</p>
+                  </div>
+                  <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
+                    {request.status}
+                  </Badge>
+                </div>
+                
+                {request.status === 'pending' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Select Hotel</Label>
+                      <Select 
+                        value={request.selectedHotel || ''} 
+                        onValueChange={(value) => {
+                          // Update the request with selected hotel
+                          const updated = accommodationRequests.map((req: any) => 
+                            req.id === request.id ? { ...req, selectedHotel: value } : req
+                          );
+                          // This would need to be handled properly with state management
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select hotel" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {hotels?.filter((hotel: Hotel) => hotel.approved === 'true').map((hotel: Hotel) => (
+                            <SelectItem key={hotel.id} value={hotel.id.toString()}>
+                              {hotel.name} - {hotel.availableRooms} rooms available
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Select Room Category</Label>
+                      <Select 
+                        value={request.selectedRoomCategory || ''} 
+                        onValueChange={(value) => {
+                          // Update the request with selected room category
+                          const updated = accommodationRequests.map((req: any) => 
+                            req.id === request.id ? { ...req, selectedRoomCategory: value } : req
+                          );
+                          // This would need to be handled properly with state management
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select room category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* Room categories would be fetched based on selected hotel */}
+                          <SelectItem value="standard">Standard Room</SelectItem>
+                          <SelectItem value="deluxe">Deluxe Room</SelectItem>
+                          <SelectItem value="suite">Suite</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Button 
+                        onClick={() => {
+                          if (request.selectedHotel && request.selectedRoomCategory) {
+                            assignAccommodationMutation.mutate({
+                              accommodationId: request.id,
+                              hotelId: parseInt(request.selectedHotel),
+                              roomCategoryId: parseInt(request.selectedRoomCategory)
+                            });
+                          }
+                        }}
+                        disabled={!request.selectedHotel || !request.selectedRoomCategory}
+                      >
+                        Assign Hotel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>

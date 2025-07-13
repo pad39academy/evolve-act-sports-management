@@ -358,6 +358,27 @@ export const accountCreationRequests = pgTable("account_creation_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const playerAccommodationRequests = pgTable("player_accommodation_requests", {
+  id: serial("id").primaryKey(),
+  teamMemberId: integer("team_member_id").references(() => teamMembers.id),
+  teamRequestId: integer("team_request_id").references(() => teamRequests.id),
+  clusterId: integer("cluster_id").references(() => hotelClusters.id),
+  hotelId: integer("hotel_id").references(() => hotels.id),
+  roomCategoryId: integer("room_category_id").references(() => roomCategories.id),
+  checkInDate: date("check_in_date"),
+  checkOutDate: date("check_out_date"),
+  accommodationPreferences: text("accommodation_preferences"),
+  status: varchar("status", { length: 50 }).default("pending"), // pending, hotel_assigned, hotel_approved, hotel_rejected, confirmed
+  assignedBy: integer("assigned_by").references(() => users.id), // Event Manager who assigned
+  assignedAt: timestamp("assigned_at"),
+  hotelResponseReason: text("hotel_response_reason"),
+  hotelRespondedBy: integer("hotel_responded_by").references(() => users.id), // Hotel Manager
+  hotelRespondedAt: timestamp("hotel_responded_at"),
+  confirmationCode: varchar("confirmation_code", { length: 50 }).unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertCitySchema = createInsertSchema(cities);
 export const insertTournamentSchema = createInsertSchema(tournaments);
@@ -372,6 +393,7 @@ export const insertPlayerBookingSchema = createInsertSchema(playerBookings);
 export const insertTeamRequestSchema = createInsertSchema(teamRequests);
 export const insertTeamMemberSchema = createInsertSchema(teamMembers);
 export const insertAccountCreationRequestSchema = createInsertSchema(accountCreationRequests);
+export const insertPlayerAccommodationRequestSchema = createInsertSchema(playerAccommodationRequests);
 
 // Types
 export type City = typeof cities.$inferSelect;
@@ -400,3 +422,5 @@ export type TeamMember = typeof teamMembers.$inferSelect;
 export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type AccountCreationRequest = typeof accountCreationRequests.$inferSelect;
 export type InsertAccountCreationRequest = z.infer<typeof insertAccountCreationRequestSchema>;
+export type PlayerAccommodationRequest = typeof playerAccommodationRequests.$inferSelect;
+export type InsertPlayerAccommodationRequest = z.infer<typeof insertPlayerAccommodationRequestSchema>;

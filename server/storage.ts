@@ -14,6 +14,7 @@ import {
   teamRequests,
   teamMembers,
   accountCreationRequests,
+  playerAccommodationRequests,
   type User,
   type InsertUser,
   type OtpVerification,
@@ -44,6 +45,8 @@ import {
   type InsertTeamMember,
   type AccountCreationRequest,
   type InsertAccountCreationRequest,
+  type PlayerAccommodationRequest,
+  type InsertPlayerAccommodationRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -153,6 +156,14 @@ export interface IStorage {
   createAccountCreationRequest(request: InsertAccountCreationRequest): Promise<AccountCreationRequest>;
   updateAccountCreationRequest(id: number, request: Partial<InsertAccountCreationRequest>): Promise<AccountCreationRequest>;
   getAccountCreationRequestsByTeamMember(teamMemberId: number): Promise<AccountCreationRequest[]>;
+
+  // Player accommodation operations
+  createPlayerAccommodationRequest(request: InsertPlayerAccommodationRequest): Promise<PlayerAccommodationRequest>;
+  getPlayerAccommodationRequestsByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]>;
+  getPlayerAccommodationRequestsByHotel(hotelId: number): Promise<PlayerAccommodationRequest[]>;
+  assignHotelToPlayerAccommodation(accommodationId: number, hotelId: number, roomCategoryId: number, assignedBy: number): Promise<PlayerAccommodationRequest>;
+  respondToPlayerAccommodationRequest(accommodationId: number, status: string, reason?: string, respondedBy?: number): Promise<PlayerAccommodationRequest>;
+  getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -677,6 +688,59 @@ export class DatabaseStorage implements IStorage {
 
   async getAccountCreationRequestsByTeamMember(teamMemberId: number): Promise<AccountCreationRequest[]> {
     return await db.select().from(accountCreationRequests).where(eq(accountCreationRequests.teamMemberId, teamMemberId));
+  }
+
+  // Player accommodation operations
+  async createPlayerAccommodationRequest(request: InsertPlayerAccommodationRequest): Promise<PlayerAccommodationRequest> {
+    const [createdRequest] = await db.insert(playerAccommodationRequests).values(request).returning();
+    return createdRequest;
+  }
+
+  async getPlayerAccommodationRequestsByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]> {
+    return await db.select().from(playerAccommodationRequests).where(eq(playerAccommodationRequests.teamRequestId, teamRequestId));
+  }
+
+  async getPlayerAccommodationRequestsByHotel(hotelId: number): Promise<PlayerAccommodationRequest[]> {
+    return await db.select().from(playerAccommodationRequests).where(eq(playerAccommodationRequests.hotelId, hotelId));
+  }
+
+  async assignHotelToPlayerAccommodation(accommodationId: number, hotelId: number, roomCategoryId: number, assignedBy: number): Promise<PlayerAccommodationRequest> {
+    const [updatedRequest] = await db
+      .update(playerAccommodationRequests)
+      .set({
+        hotelId,
+        roomCategoryId,
+        status: 'hotel_assigned',
+        assignedBy,
+        assignedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(playerAccommodationRequests.id, accommodationId))
+      .returning();
+    return updatedRequest;
+  }
+
+  async respondToPlayerAccommodationRequest(accommodationId: number, status: string, reason?: string, respondedBy?: number): Promise<PlayerAccommodationRequest> {
+    const [updatedRequest] = await db
+      .update(playerAccommodationRequests)
+      .set({
+        status,
+        hotelResponseReason: reason,
+        hotelRespondedBy: respondedBy,
+        hotelRespondedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(playerAccommodationRequests.id, accommodationId))
+      .returning();
+    return updatedRequest;
+  }
+
+  async getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]> {
+    return await db
+      .select()
+      .from(playerAccommodationRequests)
+      .innerJoin(teamMembers, eq(playerAccommodationRequests.teamMemberId, teamMembers.id))
+      .where(eq(teamMembers.userId, playerId));
   }
 }
 

@@ -1147,7 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/team-approvals/:id/approve', requireAuth, async (req: any, res) => {
+  app.patch('/api/team-approvals/:id/approve', requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.user?.id;
       const user = await storage.getUser(userId);
@@ -1156,14 +1156,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const approvedRequest = await storage.approveTeamRequest(parseInt(req.params.id), userId);
-      res.json(approvedRequest);
+      
+      // Create player accommodation requests for team members who require accommodation
+      const teamMembers = await storage.getTeamMembersByRequest(parseInt(req.params.id));
+      const accommodationRequests = [];
+      
+      for (const member of teamMembers) {
+        if (member.requiresAccommodation) {
+          const accommodationRequest = await storage.createPlayerAccommodationRequest({
+            teamMemberId: member.id,
+            teamRequestId: parseInt(req.params.id),
+            accommodationPreferences: member.accommodationPreferences,
+            status: 'pending'
+          });
+          accommodationRequests.push(accommodationRequest);
+        }
+      }
+      
+      res.json({ 
+        teamRequest: approvedRequest, 
+        accommodationRequests: accommodationRequests 
+      });
     } catch (error) {
       console.error("Error approving team request:", error);
       res.status(500).json({ message: "Failed to approve team request" });
     }
   });
 
-  app.post('/api/team-approvals/:id/reject', requireAuth, async (req: any, res) => {
+  app.patch('/api/team-approvals/:id/reject', requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.user?.id;
       const user = await storage.getUser(userId);
@@ -1177,6 +1197,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error rejecting team request:", error);
       res.status(500).json({ message: "Failed to reject team request" });
+    }
+  });
+
+  // Player accommodation management routes
+  app.get('/api/event-manager/accommodation-requests/:teamRequestId', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const accommodationRequests = await storage.getPlayerAccommodationRequestsByTeamRequest(parseInt(req.params.teamRequestId));
+      res.json(accommodationRequests);
+    } catch (error) {
+      console.error("Error fetching accommodation requests:", error);
+      res.status(500).json({ message: "Failed to fetch accommodation requests" });
+    }
+  });
+
+  app.post('/api/event-manager/accommodation-requests/:accommodationId/assign-hotel', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { hotelId, roomCategoryId } = req.body;
+      const updatedRequest = await storage.assignHotelToPlayerAccommodation(
+        parseInt(req.params.accommodationId),
+        hotelId,
+        roomCategoryId,
+        userId
+      );
+      
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error assigning hotel:", error);
+      res.status(500).json({ message: "Failed to assign hotel" });
+    }
+  });
+
+  // Hotel manager accommodation response routes
+  app.get('/api/hotel-manager/accommodation-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get hotels managed by this user
+      const hotels = await storage.getHotelsByManager(userId);
+      const allRequests = [];
+      
+      for (const hotel of hotels) {
+        const requests = await storage.getPlayerAccommodationRequestsByHotel(hotel.id);
+        allRequests.push(...requests);
+      }
+      
+      res.json(allRequests);
+    } catch (error) {
+      console.error("Error fetching hotel accommodation requests:", error);
+      res.status(500).json({ message: "Failed to fetch accommodation requests" });
+    }
+  });
+
+  app.patch('/api/hotel-manager/accommodation-requests/:accommodationId/respond', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'hotel_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { status, reason } = req.body;
+      const updatedRequest = await storage.respondToPlayerAccommodationRequest(
+        parseInt(req.params.accommodationId),
+        status,
+        reason,
+        userId
+      );
+      
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error responding to accommodation request:", error);
+      res.status(500).json({ message: "Failed to respond to accommodation request" });
+    }
+  });
+
+  // Player accommodation status routes
+  app.get('/api/player/accommodation-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'player') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const accommodationRequests = await storage.getPlayerAccommodationRequestsByPlayer(userId);
+      res.json(accommodationRequests);
+    } catch (error) {
+      console.error("Error fetching player accommodation requests:", error);
+      res.status(500).json({ message: "Failed to fetch accommodation requests" });
     }
   });
 
