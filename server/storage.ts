@@ -172,6 +172,9 @@ export interface IStorage {
   bulkCheckOutPlayers(teamRequestId: number, checkedOutBy: number, isEarlyCheckout?: boolean): Promise<PlayerAccommodationRequest[]>;
   getCheckedInPlayersByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]>;
   getCheckedOutPlayersByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]>;
+  
+  // Player checkout operations
+  updatePlayerAccommodationCheckout(accommodationId: number, newQrCode: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1090,6 +1093,19 @@ export class DatabaseStorage implements IStorage {
           eq(playerAccommodationRequests.checkOutStatus, 'checked_out')
         )
       );
+  }
+
+  // Update player accommodation checkout
+  async updatePlayerAccommodationCheckout(accommodationId: number, newQrCode: string): Promise<void> {
+    await db
+      .update(playerAccommodationRequests)
+      .set({
+        checkOutStatus: 'checked_out',
+        actualCheckOutTime: new Date(),
+        qrCode: newQrCode,
+        updatedAt: new Date(),
+      })
+      .where(eq(playerAccommodationRequests.id, accommodationId));
   }
 }
 

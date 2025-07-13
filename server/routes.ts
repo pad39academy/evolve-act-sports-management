@@ -1471,6 +1471,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Player checkout route
+  app.post('/api/player/accommodation-requests/:id/checkout', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'player') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const accommodationId = parseInt(req.params.id);
+      
+      // Check if the accommodation request belongs to this player
+      const accommodationRequests = await storage.getPlayerAccommodationRequestsByPlayer(userId);
+      const request = accommodationRequests.find(r => r.id === accommodationId);
+      
+      if (!request) {
+        return res.status(404).json({ message: "Accommodation request not found" });
+      }
+      
+      // Check if player can checkout (must be confirmed and checked in)
+      if (request.status !== 'confirmed' || request.checkInStatus !== 'checked_in' || request.checkOutStatus !== 'pending') {
+        return res.status(400).json({ message: "Cannot checkout at this time" });
+      }
+      
+      // Generate new QR code for checkout
+      const { nanoid } = await import('nanoid');
+      const newQrCode = nanoid(32);
+      
+      // Update accommodation request with checkout details
+      const updatedRequest = await storage.respondToPlayerAccommodationRequest(
+        accommodationId,
+        'confirmed',
+        'Player checkout completed',
+        userId
+      );
+      
+      // Update checkout status and QR code
+      await storage.updatePlayerAccommodationCheckout(accommodationId, newQrCode);
+      
+      res.json({
+        message: "Checkout successful",
+        qrCode: newQrCode,
+        checkoutTime: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error processing player checkout:", error);
+      res.status(500).json({ message: "Failed to process checkout" });
+    }
+  });
+
   // Event manager rejected accommodation requests route
   app.get('/api/event-manager/rejected-accommodation-requests', requireAuth, async (req: any, res) => {
     try {
