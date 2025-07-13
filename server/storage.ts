@@ -49,7 +49,7 @@ import {
   type InsertPlayerAccommodationRequest,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -737,7 +737,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRejectedAccommodationRequests(): Promise<PlayerAccommodationRequest[]> {
-    return await db.select().from(playerAccommodationRequests).where(eq(playerAccommodationRequests.status, 'rejected'));
+    return await db
+      .select({
+        id: playerAccommodationRequests.id,
+        teamMemberId: playerAccommodationRequests.teamMemberId,
+        teamRequestId: playerAccommodationRequests.teamRequestId,
+        clusterId: playerAccommodationRequests.clusterId,
+        hotelId: playerAccommodationRequests.hotelId,
+        roomCategoryId: playerAccommodationRequests.roomCategoryId,
+        checkInDate: playerAccommodationRequests.checkInDate,
+        checkOutDate: playerAccommodationRequests.checkOutDate,
+        accommodationPreferences: playerAccommodationRequests.accommodationPreferences,
+        status: playerAccommodationRequests.status,
+        assignedBy: playerAccommodationRequests.assignedBy,
+        assignedAt: playerAccommodationRequests.assignedAt,
+        hotelResponseReason: playerAccommodationRequests.hotelResponseReason,
+        hotelRespondedBy: playerAccommodationRequests.hotelRespondedBy,
+        hotelRespondedAt: playerAccommodationRequests.hotelRespondedAt,
+        confirmationCode: playerAccommodationRequests.confirmationCode,
+        createdAt: playerAccommodationRequests.createdAt,
+        updatedAt: playerAccommodationRequests.updatedAt,
+        teamMemberName: sql<string>`${teamMembers.firstName} || ' ' || ${teamMembers.lastName}`,
+        teamName: teamRequests.teamName,
+        hotelName: hotels.name,
+        roomCategoryName: roomCategories.categoryName,
+      })
+      .from(playerAccommodationRequests)
+      .innerJoin(teamMembers, eq(playerAccommodationRequests.teamMemberId, teamMembers.id))
+      .innerJoin(teamRequests, eq(playerAccommodationRequests.teamRequestId, teamRequests.id))
+      .leftJoin(hotels, eq(playerAccommodationRequests.hotelId, hotels.id))
+      .leftJoin(roomCategories, eq(playerAccommodationRequests.roomCategoryId, roomCategories.id))
+      .where(eq(playerAccommodationRequests.status, 'hotel_rejected'));
   }
 
   async getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]> {
