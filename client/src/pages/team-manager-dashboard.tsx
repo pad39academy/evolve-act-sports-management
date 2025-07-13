@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Calendar, Trophy, LogOut, Trash2, Edit, X, Hotel, CheckCircle, Clock, AlertCircle, UserCheck, UserX, Download, QrCode } from 'lucide-react';
+import { Plus, Users, Calendar, Trophy, LogOut, Trash2, Edit, X, Hotel, CheckCircle, Clock, AlertCircle, UserCheck, UserX, Download, QrCode, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { countryCodes } from '@shared/schema';
@@ -71,6 +72,7 @@ interface AccommodationRequest {
   actualCheckoutDate?: string;
   checkinStatus?: string;
   checkoutStatus?: string;
+  isEarlyCheckout?: boolean;
   accommodationPreferences?: string;
   confirmationCode?: string;
   qrCode?: string;
@@ -262,10 +264,15 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
     }
   };
 
-  const getCheckoutStatusBadge = (checkoutStatus: string) => {
+  const getCheckoutStatusBadge = (checkoutStatus: string, isEarlyCheckout: boolean = false) => {
     switch (checkoutStatus) {
       case 'checked_out':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700"><UserX className="h-3 w-3 mr-1" />Checked Out</Badge>;
+        return (
+          <Badge variant="outline" className={`${isEarlyCheckout ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
+            <UserX className="h-3 w-3 mr-1" />
+            {isEarlyCheckout ? 'Early Check-out' : 'Checked Out'}
+          </Badge>
+        );
       case 'pending':
         return <Badge variant="outline" className="bg-gray-50 text-gray-700"><Clock className="h-3 w-3 mr-1" />Pending Check-out</Badge>;
       default:
@@ -323,24 +330,29 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
                 <UserCheck className="h-4 w-4 mr-2" />
                 {bulkCheckinMutation.isPending ? 'Checking In...' : 'Bulk Check In'}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => bulkCheckoutMutation.mutate(false)}
-                disabled={!canCheckOut || bulkCheckoutMutation.isPending}
-              >
-                <UserX className="h-4 w-4 mr-2" />
-                {bulkCheckoutMutation.isPending ? 'Checking Out...' : 'Bulk Check Out'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => bulkCheckoutMutation.mutate(true)}
-                disabled={!canCheckOut || bulkCheckoutMutation.isPending}
-              >
-                <UserX className="h-4 w-4 mr-2" />
-                Early Check Out
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canCheckOut || bulkCheckoutMutation.isPending}
+                  >
+                    <UserX className="h-4 w-4 mr-2" />
+                    {bulkCheckoutMutation.isPending ? 'Checking Out...' : 'Bulk Check Out'}
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => bulkCheckoutMutation.mutate(false)}>
+                    <UserX className="h-4 w-4 mr-2" />
+                    Regular Check Out
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => bulkCheckoutMutation.mutate(true)}>
+                    <UserX className="h-4 w-4 mr-2" />
+                    Early Check Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Team Bulk Check-in QR Code */}
@@ -423,7 +435,7 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
                       <div className="flex flex-col space-y-1">
                         {getStatusBadge(request.status)}
                         {request.checkinStatus && getCheckinStatusBadge(request.checkinStatus)}
-                        {request.checkoutStatus && getCheckoutStatusBadge(request.checkoutStatus)}
+                        {request.checkoutStatus && getCheckoutStatusBadge(request.checkoutStatus, request.isEarlyCheckout)}
                       </div>
                       
                       {/* QR Code Display */}
