@@ -106,6 +106,10 @@ export default function EventManagerDashboard() {
   const [showHotelAssignDialog, setShowHotelAssignDialog] = useState(false);
   const [showAccommodationDialog, setShowAccommodationDialog] = useState(false);
   
+  // New state variables for accommodation assignment
+  const [selectedAccommodationCluster, setSelectedAccommodationCluster] = useState<string>('');
+  const [assignmentMethod, setAssignmentMethod] = useState<'automatic' | 'manual' | ''>('');
+  
   const [tournamentForm, setTournamentForm] = useState({
     name: '',
     locations: '',
@@ -434,14 +438,20 @@ export default function EventManagerDashboard() {
 
   // Accommodation assignment mutation
   const assignAccommodationMutation = useMutation({
-    mutationFn: ({ accommodationId, hotelId, roomCategoryId }: { accommodationId: number; hotelId: number; roomCategoryId: number }) => 
+    mutationFn: ({ accommodationId, hotelId, roomCategoryId, clusterId, automatic }: { 
+      accommodationId: number; 
+      hotelId?: number; 
+      roomCategoryId?: number; 
+      clusterId?: number; 
+      automatic?: boolean; 
+    }) => 
       apiRequest(`/api/event-manager/accommodation-requests/${accommodationId}/assign-hotel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hotelId, roomCategoryId }),
+        body: JSON.stringify({ hotelId, roomCategoryId, clusterId, automatic }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/event-manager/accommodation-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/event-manager/accommodation-requests', selectedTeamRequest?.id] });
       toast({ title: 'Hotel assigned successfully' });
     },
     onError: (error: Error) => {
@@ -1460,89 +1470,162 @@ export default function EventManagerDashboard() {
               Assign hotels and room categories to team members who require accommodation
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {accommodationRequests?.map((request: any) => (
-              <div key={request.id} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h4 className="font-semibold">{request.teamMember?.firstName} {request.teamMember?.lastName}</h4>
-                    <p className="text-sm text-gray-600">{request.teamMember?.email}</p>
-                    <p className="text-sm text-gray-600">Preferences: {request.accommodationPreferences || 'None'}</p>
-                  </div>
-                  <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
-                    {request.status}
-                  </Badge>
+          <div className="space-y-6">
+            {/* First: Select Cluster */}
+            <div className="border rounded-lg p-4 bg-blue-50">
+              <h3 className="font-semibold mb-4">Step 1: Select Hotel Cluster</h3>
+              <div>
+                <Label>Select Cluster</Label>
+                <Select value={selectedAccommodationCluster} onValueChange={setSelectedAccommodationCluster}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select cluster for accommodation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allClusters?.map((cluster: HotelCluster) => (
+                      <SelectItem key={cluster.id} value={cluster.id.toString()}>
+                        {cluster.name} - {cluster.city} ({cluster.stadiumName})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Second: Assignment Method */}
+            {selectedAccommodationCluster && (
+              <div className="border rounded-lg p-4 bg-green-50">
+                <h3 className="font-semibold mb-4">Step 2: Choose Assignment Method</h3>
+                <div className="flex gap-4 mb-4">
+                  <Button 
+                    variant={assignmentMethod === 'automatic' ? 'default' : 'outline'}
+                    onClick={() => setAssignmentMethod('automatic')}
+                  >
+                    Assign Automatically
+                  </Button>
+                  <Button 
+                    variant={assignmentMethod === 'manual' ? 'default' : 'outline'}
+                    onClick={() => setAssignmentMethod('manual')}
+                  >
+                    Manual Selection
+                  </Button>
                 </div>
                 
-                {request.status === 'pending' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Select Hotel</Label>
-                      <Select 
-                        value={request.selectedHotel || ''} 
-                        onValueChange={(value) => {
-                          // Update the request with selected hotel
-                          const updated = accommodationRequests.map((req: any) => 
-                            req.id === request.id ? { ...req, selectedHotel: value } : req
-                          );
-                          // This would need to be handled properly with state management
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select hotel" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {hotels?.filter((hotel: Hotel) => hotel.approved === 'true').map((hotel: Hotel) => (
-                            <SelectItem key={hotel.id} value={hotel.id.toString()}>
-                              {hotel.name} - {hotel.availableRooms} rooms available
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Select Room Category</Label>
-                      <Select 
-                        value={request.selectedRoomCategory || ''} 
-                        onValueChange={(value) => {
-                          // Update the request with selected room category
-                          const updated = accommodationRequests.map((req: any) => 
-                            req.id === request.id ? { ...req, selectedRoomCategory: value } : req
-                          );
-                          // This would need to be handled properly with state management
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select room category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* Room categories would be fetched based on selected hotel */}
-                          <SelectItem value="standard">Standard Room</SelectItem>
-                          <SelectItem value="deluxe">Deluxe Room</SelectItem>
-                          <SelectItem value="suite">Suite</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <Button 
-                        onClick={() => {
-                          if (request.selectedHotel && request.selectedRoomCategory) {
-                            assignAccommodationMutation.mutate({
-                              accommodationId: request.id,
-                              hotelId: parseInt(request.selectedHotel),
-                              roomCategoryId: parseInt(request.selectedRoomCategory)
-                            });
-                          }
-                        }}
-                        disabled={!request.selectedHotel || !request.selectedRoomCategory}
-                      >
-                        Assign Hotel
-                      </Button>
-                    </div>
+                {assignmentMethod === 'automatic' && (
+                  <div className="text-sm text-gray-600">
+                    System will automatically assign available hotels and room categories from the selected cluster.
                   </div>
                 )}
               </div>
-            ))}
+            )}
+
+            {/* Third: Player Assignment */}
+            {selectedAccommodationCluster && assignmentMethod && (
+              <div className="space-y-4">
+                <h3 className="font-semibold">Step 3: Assign Accommodation</h3>
+                {accommodationRequests?.map((request: any) => (
+                  <div key={request.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 className="font-semibold">{request.teamMember?.firstName} {request.teamMember?.lastName}</h4>
+                        <p className="text-sm text-gray-600">{request.teamMember?.email}</p>
+                        <p className="text-sm text-gray-600">Preferences: {request.accommodationPreferences || 'None'}</p>
+                      </div>
+                      <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
+                        {request.status}
+                      </Badge>
+                    </div>
+                    
+                    {request.status === 'pending' && assignmentMethod === 'manual' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Select Hotel (from cluster)</Label>
+                          <Select 
+                            value={request.selectedHotel || ''} 
+                            onValueChange={(value) => {
+                              // Update the request with selected hotel
+                              const updated = accommodationRequests.map((req: any) => 
+                                req.id === request.id ? { ...req, selectedHotel: value } : req
+                              );
+                              // This would need to be handled properly with state management
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select hotel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {hotels?.filter((hotel: Hotel) => 
+                                hotel.approved === 'true' && 
+                                hotel.clusterId === parseInt(selectedAccommodationCluster)
+                              ).map((hotel: Hotel) => (
+                                <SelectItem key={hotel.id} value={hotel.id.toString()}>
+                                  {hotel.name} - {hotel.availableRooms} rooms available
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Select Room Category</Label>
+                          <Select 
+                            value={request.selectedRoomCategory || ''} 
+                            onValueChange={(value) => {
+                              // Update the request with selected room category
+                              const updated = accommodationRequests.map((req: any) => 
+                                req.id === request.id ? { ...req, selectedRoomCategory: value } : req
+                              );
+                              // This would need to be handled properly with state management
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select room category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {/* Room categories would be fetched based on selected hotel */}
+                              <SelectItem value="standard">Standard Room</SelectItem>
+                              <SelectItem value="deluxe">Deluxe Room</SelectItem>
+                              <SelectItem value="suite">Suite</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <Button 
+                            onClick={() => {
+                              if (request.selectedHotel && request.selectedRoomCategory) {
+                                assignAccommodationMutation.mutate({
+                                  accommodationId: request.id,
+                                  hotelId: parseInt(request.selectedHotel),
+                                  roomCategoryId: parseInt(request.selectedRoomCategory)
+                                });
+                              }
+                            }}
+                            disabled={!request.selectedHotel || !request.selectedRoomCategory}
+                          >
+                            Assign Hotel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {request.status === 'pending' && assignmentMethod === 'automatic' && (
+                      <div>
+                        <Button 
+                          onClick={() => {
+                            assignAccommodationMutation.mutate({
+                              accommodationId: request.id,
+                              clusterId: parseInt(selectedAccommodationCluster),
+                              automatic: true
+                            });
+                          }}
+                          className="w-full"
+                        >
+                          Auto-Assign from Cluster
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
