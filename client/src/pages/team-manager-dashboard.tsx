@@ -9,10 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Calendar, Trophy, LogOut, Trash2, Edit, X, Hotel, CheckCircle, Clock, AlertCircle, UserCheck, UserX } from 'lucide-react';
+import { Plus, Users, Calendar, Trophy, LogOut, Trash2, Edit, X, Hotel, CheckCircle, Clock, AlertCircle, UserCheck, UserX, Download, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { countryCodes } from '@shared/schema';
+import QRCode from 'qrcode';
 
 interface TeamMember {
   id?: number;
@@ -71,6 +72,8 @@ interface AccommodationRequest {
   checkinStatus?: string;
   checkoutStatus?: string;
   accommodationPreferences?: string;
+  confirmationCode?: string;
+  qrCode?: string;
   teamMember?: {
     firstName: string;
     lastName: string;
@@ -107,6 +110,86 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
     queryKey: [`/api/team-manager/team-requests/${teamRequest.id}/accommodation-requests`],
     enabled: !!teamRequest.id,
   });
+
+  // QR Code generation and download function
+  const generateQRCode = async (qrData: string) => {
+    try {
+      const qrImageUrl = await QRCode.toDataURL(qrData, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      return qrImageUrl;
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      return null;
+    }
+  };
+
+  const downloadQRCode = async (qrData: string, memberName: string, confirmationCode: string) => {
+    try {
+      const qrImageUrl = await QRCode.toDataURL(qrData, {
+        width: 512,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      const a = document.createElement('a');
+      a.href = qrImageUrl;
+      a.download = `${memberName.replace(/\s+/g, '-')}-checkin-qr-${confirmationCode}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast({
+        title: "QR Code Downloaded",
+        description: `Check-in QR code for ${memberName} has been downloaded successfully.`,
+      });
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      toast({
+        title: "Download Error",
+        description: "Failed to download QR code. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const QRCodeDisplay = ({ qrData, isLoading }: { qrData: string; isLoading: boolean }) => {
+    const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (qrData && !isLoading) {
+        generateQRCode(qrData).then(setQrImageUrl);
+      }
+    }, [qrData, isLoading]);
+
+    if (isLoading) {
+      return <div className="text-xs text-gray-500">Generating QR...</div>;
+    }
+
+    if (!qrImageUrl) {
+      return <div className="text-xs text-gray-500">No QR code available</div>;
+    }
+
+    return (
+      <div className="flex items-center justify-center">
+        <div className="w-16 h-16 border border-gray-300 rounded bg-white p-1">
+          <img 
+            src={qrImageUrl} 
+            alt="Check-in QR Code" 
+            className="w-full h-full object-contain"
+          />
+        </div>
+      </div>
+    );
+  };
 
   const bulkCheckinMutation = useMutation({
     mutationFn: async () => {
@@ -157,11 +240,11 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
-      case 'assigned':
+      case 'hotel_assigned':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700"><Hotel className="h-3 w-3 mr-1" />Assigned</Badge>;
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-50 text-green-700"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
-      case 'rejected':
+      case 'confirmed':
+        return <Badge variant="outline" className="bg-green-50 text-green-700"><CheckCircle className="h-3 w-3 mr-1" />Confirmed</Badge>;
+      case 'hotel_rejected':
         return <Badge variant="outline" className="bg-red-50 text-red-700"><AlertCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -172,8 +255,8 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
     switch (checkinStatus) {
       case 'checked_in':
         return <Badge variant="outline" className="bg-green-50 text-green-700"><UserCheck className="h-3 w-3 mr-1" />Checked In</Badge>;
-      case 'not_checked_in':
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><UserX className="h-3 w-3 mr-1" />Not Checked In</Badge>;
+      case 'pending':
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><Clock className="h-3 w-3 mr-1" />Pending Check-in</Badge>;
       default:
         return <Badge variant="outline">{checkinStatus}</Badge>;
     }
@@ -183,17 +266,17 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
     switch (checkoutStatus) {
       case 'checked_out':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700"><UserX className="h-3 w-3 mr-1" />Checked Out</Badge>;
-      case 'not_checked_out':
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><UserCheck className="h-3 w-3 mr-1" />Not Checked Out</Badge>;
+      case 'pending':
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><Clock className="h-3 w-3 mr-1" />Pending Check-out</Badge>;
       default:
         return <Badge variant="outline">{checkoutStatus}</Badge>;
     }
   };
 
-  const approvedRequests = accommodationRequests?.filter((req: AccommodationRequest) => req.status === 'approved') || [];
-  const checkedInCount = approvedRequests.filter((req: AccommodationRequest) => req.checkinStatus === 'checked_in').length;
-  const canCheckIn = approvedRequests.some((req: AccommodationRequest) => req.checkinStatus === 'not_checked_in');
-  const canCheckOut = approvedRequests.some((req: AccommodationRequest) => req.checkinStatus === 'checked_in' && req.checkoutStatus === 'not_checked_out');
+  const confirmedRequests = accommodationRequests?.filter((req: AccommodationRequest) => req.status === 'confirmed') || [];
+  const checkedInCount = confirmedRequests.filter((req: AccommodationRequest) => req.checkinStatus === 'checked_in').length;
+  const canCheckIn = confirmedRequests.some((req: AccommodationRequest) => req.checkinStatus === 'pending');
+  const canCheckOut = confirmedRequests.some((req: AccommodationRequest) => req.checkinStatus === 'checked_in' && req.checkoutStatus === 'pending');
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -225,7 +308,7 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
                 Accommodation Requests: {accommodationRequests?.length || 0}
               </div>
               <div className="text-sm text-gray-600">
-                Checked In: {checkedInCount} / {approvedRequests.length}
+                Checked In: {checkedInCount} / {confirmedRequests.length}
               </div>
             </div>
 
@@ -261,12 +344,12 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
             </div>
 
             {/* Accommodation Requests List */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {accommodationRequests?.map((request: AccommodationRequest) => (
-                <div key={request.id} className="p-3 border rounded-lg bg-gray-50">
+                <div key={request.id} className="p-4 border rounded-lg bg-white shadow-sm">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="font-medium">
+                      <div className="font-medium text-lg">
                         {request.teamMember?.firstName} {request.teamMember?.lastName}
                       </div>
                       <div className="text-sm text-gray-600">
@@ -282,16 +365,52 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
                           Room: {request.roomCategory.name} (₹{request.roomCategory.pricePerNight}/night)
                         </div>
                       )}
+                      
+                      {/* Reference Code */}
+                      {request.confirmationCode && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded border">
+                          <div className="text-sm font-medium text-blue-800">
+                            Reference Code: {request.confirmationCode}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex flex-col space-y-1">
-                      {getStatusBadge(request.status)}
-                      {request.checkinStatus && getCheckinStatusBadge(request.checkinStatus)}
-                      {request.checkoutStatus && getCheckoutStatusBadge(request.checkoutStatus)}
+                    
+                    {/* Status Badges and QR Code */}
+                    <div className="flex flex-col items-end space-y-2">
+                      <div className="flex flex-col space-y-1">
+                        {getStatusBadge(request.status)}
+                        {request.checkinStatus && getCheckinStatusBadge(request.checkinStatus)}
+                        {request.checkoutStatus && getCheckoutStatusBadge(request.checkoutStatus)}
+                      </div>
+                      
+                      {/* QR Code Display */}
+                      {request.confirmationCode && request.status === 'confirmed' && (
+                        <div className="flex flex-col items-center space-y-1">
+                          <QRCodeDisplay 
+                            qrData={`Hotel Check-in - ${request.confirmationCode} - ${request.qrCode || 'NO_QR'}`} 
+                            isLoading={accommodationLoading}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => downloadQRCode(
+                              `Hotel Check-in - ${request.confirmationCode} - ${request.qrCode || 'NO_QR'}`,
+                              `${request.teamMember?.firstName} ${request.teamMember?.lastName}`,
+                              request.confirmationCode
+                            )}
+                            className="text-xs"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download QR
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
                   {/* Check-in/Check-out dates */}
-                  <div className="mt-2 text-xs text-gray-500">
+                  <div className="mt-3 text-xs text-gray-500 grid grid-cols-2 gap-2">
                     {request.checkinDate && (
                       <div>Check-in: {new Date(request.checkinDate).toLocaleDateString()}</div>
                     )}
