@@ -208,6 +208,11 @@ The system includes 21 pre-approved sample users across all roles:
 
 ## Recent Changes (July 13, 2025)
 
+### Data Cleanup - COMPLETED ✅
+- **Removed Coimbatore Thunder Test Data** - Cleaned up duplicate team requests and associated data
+- **Database Optimization** - Removed 5 duplicate team requests, 6 team members, and 2 account creation requests
+- **Maintained Data Integrity** - Preserved foreign key relationships while removing test data
+
 ### QR Code Enhancement System - FULLY IMPLEMENTED ✅
 - **Enhanced QR Code Display** - QR codes now show as actual scannable images (200x200px) instead of text
 - **Improved QR Code Downloads** - Downloads now save as PNG image files instead of text files
