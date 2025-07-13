@@ -224,6 +224,17 @@ The system includes 21 pre-approved sample users across all roles:
 
 ## Recent Changes (July 13, 2025)
 
+### Bulk Check-in/Check-out System Implementation - COMPLETED ✅
+- **Team Manager Bulk Operations** - Added accommodation management tab to team manager dashboard
+- **Bulk Check-in Functionality** - Team managers can check in all approved players at once
+- **Bulk Check-out Functionality** - Team managers can check out all checked-in players (regular or early checkout)
+- **Early Checkout Support** - Special early checkout option for flexible departure times
+- **Real-time Status Tracking** - Live updates of check-in/check-out status and actual times
+- **Database Schema Updates** - Added check_in_status, check_out_status, actual_check_in_time, actual_check_out_time fields
+- **API Routes Implementation** - Full REST API for bulk operations (/api/team-manager/team-requests/:id/bulk-checkin, /api/team-manager/team-requests/:id/bulk-checkout)
+- **UI Status Badges** - Visual indicators for pending, checked in, and checked out status
+- **Complete Testing** - Successfully tested with Mumbai Warriors team (2 players checked in and out)
+
 ### Player-Level Accommodation System Implementation - COMPLETED ✅
 - **Database Schema Updates** - Added player_accommodation_requests table with complete workflow fields
 - **Team Member Accommodation Fields** - Moved accommodation preferences from team level to individual player level
