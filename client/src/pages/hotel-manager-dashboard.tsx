@@ -115,8 +115,10 @@ export default function HotelManagerDashboard() {
     notableFeatures: '',
     totalRooms: 0,
     availableRooms: 0,
+    contactPhoneISD: '+91',
     contactPhone: '',
     contactEmail: '',
+    alternatePhoneISD: '+91',
     alternatePhone: '',
     alternateEmail: '',
     autoApproveBookings: false,
@@ -437,8 +439,10 @@ export default function HotelManagerDashboard() {
       notableFeatures: '',
       totalRooms: 0,
       availableRooms: 0,
+      contactPhoneISD: '+91',
       contactPhone: '',
       contactEmail: '',
+      alternatePhoneISD: '+91',
       alternatePhone: '',
       alternateEmail: '',
       autoApproveBookings: false,
@@ -463,11 +467,30 @@ export default function HotelManagerDashboard() {
   const handleHotelSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Combine contact fields into a single JSON object
+    // Validate phone numbers
+    if (hotelForm.contactPhone && hotelForm.contactPhone.length !== 10) {
+      toast({
+        title: "Validation Error",
+        description: "Contact phone number must be exactly 10 digits",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (hotelForm.alternatePhone && hotelForm.alternatePhone.length !== 10) {
+      toast({
+        title: "Validation Error",
+        description: "Alternate phone number must be exactly 10 digits",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Combine contact fields into a single JSON object with ISD codes
     const contactInfo = JSON.stringify({
-      phone: hotelForm.contactPhone,
+      phone: hotelForm.contactPhone ? `${hotelForm.contactPhoneISD}-${hotelForm.contactPhone}` : '',
       email: hotelForm.contactEmail,
-      alternatePhone: hotelForm.alternatePhone,
+      alternatePhone: hotelForm.alternatePhone ? `${hotelForm.alternatePhoneISD}-${hotelForm.alternatePhone}` : '',
       alternateEmail: hotelForm.alternateEmail,
     });
     
@@ -525,6 +548,19 @@ export default function HotelManagerDashboard() {
       }
     }
     
+    // Parse phone numbers to separate ISD code and number
+    const parsePhone = (phoneString: string) => {
+      if (!phoneString) return { isd: '+91', number: '' };
+      const parts = phoneString.split('-');
+      if (parts.length >= 2) {
+        return { isd: parts[0], number: parts.slice(1).join('-') };
+      }
+      return { isd: '+91', number: phoneString };
+    };
+    
+    const contactPhone = parsePhone(contactData.phone);
+    const alternatePhone = parsePhone(contactData.alternatePhone);
+    
     setHotelForm({
       name: hotel.name,
       address: hotel.address,
@@ -532,9 +568,11 @@ export default function HotelManagerDashboard() {
       notableFeatures: hotel.notableFeatures,
       totalRooms: hotel.totalRooms,
       availableRooms: hotel.availableRooms,
-      contactPhone: contactData.phone || '',
+      contactPhoneISD: contactPhone.isd,
+      contactPhone: contactPhone.number,
       contactEmail: contactData.email || '',
-      alternatePhone: contactData.alternatePhone || '',
+      alternatePhoneISD: alternatePhone.isd,
+      alternatePhone: alternatePhone.number,
       alternateEmail: contactData.alternateEmail || '',
       autoApproveBookings: hotel.autoApproveBookings,
       bookingType: hotel.bookingType || 'on_availability',
@@ -629,7 +667,7 @@ export default function HotelManagerDashboard() {
                   <span>Add Hotel</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingHotel ? 'Edit Hotel' : 'Add New Hotel'}
@@ -675,13 +713,36 @@ export default function HotelManagerDashboard() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="contactPhone">Phone Number</Label>
-                        <Input
-                          id="contactPhone"
-                          type="tel"
-                          value={hotelForm.contactPhone}
-                          onChange={(e) => setHotelForm({ ...hotelForm, contactPhone: e.target.value })}
-                          placeholder="+91-123-456-7890"
-                        />
+                        <div className="flex gap-2">
+                          <Select value={hotelForm.contactPhoneISD} onValueChange={(value) => setHotelForm({ ...hotelForm, contactPhoneISD: value })}>
+                            <SelectTrigger className="w-20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="+91">+91</SelectItem>
+                              <SelectItem value="+1">+1</SelectItem>
+                              <SelectItem value="+44">+44</SelectItem>
+                              <SelectItem value="+61">+61</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            id="contactPhone"
+                            type="tel"
+                            value={hotelForm.contactPhone}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '');
+                              if (value.length <= 10) {
+                                setHotelForm({ ...hotelForm, contactPhone: value });
+                              }
+                            }}
+                            placeholder="1234567890"
+                            maxLength={10}
+                            className="flex-1"
+                          />
+                        </div>
+                        {hotelForm.contactPhone && hotelForm.contactPhone.length !== 10 && (
+                          <p className="text-sm text-red-500 mt-1">Phone number must be exactly 10 digits</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="contactEmail">Email Address</Label>
@@ -695,13 +756,36 @@ export default function HotelManagerDashboard() {
                       </div>
                       <div>
                         <Label htmlFor="alternatePhone">Alternate Phone</Label>
-                        <Input
-                          id="alternatePhone"
-                          type="tel"
-                          value={hotelForm.alternatePhone}
-                          onChange={(e) => setHotelForm({ ...hotelForm, alternatePhone: e.target.value })}
-                          placeholder="+91-123-456-7891"
-                        />
+                        <div className="flex gap-2">
+                          <Select value={hotelForm.alternatePhoneISD} onValueChange={(value) => setHotelForm({ ...hotelForm, alternatePhoneISD: value })}>
+                            <SelectTrigger className="w-20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="+91">+91</SelectItem>
+                              <SelectItem value="+1">+1</SelectItem>
+                              <SelectItem value="+44">+44</SelectItem>
+                              <SelectItem value="+61">+61</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            id="alternatePhone"
+                            type="tel"
+                            value={hotelForm.alternatePhone}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '');
+                              if (value.length <= 10) {
+                                setHotelForm({ ...hotelForm, alternatePhone: value });
+                              }
+                            }}
+                            placeholder="1234567890"
+                            maxLength={10}
+                            className="flex-1"
+                          />
+                        </div>
+                        {hotelForm.alternatePhone && hotelForm.alternatePhone.length !== 10 && (
+                          <p className="text-sm text-red-500 mt-1">Phone number must be exactly 10 digits</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="alternateEmail">Alternate Email</Label>
@@ -714,6 +798,23 @@ export default function HotelManagerDashboard() {
                         />
                       </div>
                     </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="bookingType">Booking Type</Label>
+                    <Select value={hotelForm.bookingType} onValueChange={(value) => setHotelForm({ ...hotelForm, bookingType: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select booking type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="on_availability">On Availability</SelectItem>
+                        <SelectItem value="pay_per_use">Pay Per Use</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {hotelForm.bookingType === 'pay_per_use' 
+                        ? 'Fixed rooms allocated to sports with sharing options. Auto-approved bookings.' 
+                        : 'Hotel manager controls availability and approves bookings manually.'}
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -751,23 +852,6 @@ export default function HotelManagerDashboard() {
                       onChange={(e) => setHotelForm({ ...hotelForm, notableFeatures: e.target.value })}
                       placeholder="WiFi, pool, gym, etc."
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="bookingType">Booking Type</Label>
-                    <Select value={hotelForm.bookingType} onValueChange={(value) => setHotelForm({ ...hotelForm, bookingType: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select booking type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="on_availability">On Availability</SelectItem>
-                        <SelectItem value="pay_per_use">Pay Per Use</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {hotelForm.bookingType === 'pay_per_use' 
-                        ? 'Fixed rooms allocated to sports with sharing options. Auto-approved bookings.' 
-                        : 'Hotel manager controls availability and approves bookings manually.'}
-                    </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
@@ -918,7 +1002,7 @@ export default function HotelManagerDashboard() {
                         <span>Add Room Category</span>
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>
                           {editingRoom ? 'Edit Room Category' : 'Add New Room Category'}
