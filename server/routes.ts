@@ -1225,18 +1225,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const { hotelId, roomCategoryId } = req.body;
-      const updatedRequest = await storage.assignHotelToPlayerAccommodation(
-        parseInt(req.params.accommodationId),
-        hotelId,
-        roomCategoryId,
-        userId
-      );
+      const { hotelId, roomCategoryId, clusterId, automatic } = req.body;
+      
+      let updatedRequest;
+      if (automatic && clusterId) {
+        // Auto-assign from cluster
+        updatedRequest = await storage.autoAssignHotelToPlayerAccommodation(
+          parseInt(req.params.accommodationId),
+          clusterId,
+          userId
+        );
+      } else if (hotelId && roomCategoryId) {
+        // Manual assignment
+        updatedRequest = await storage.assignHotelToPlayerAccommodation(
+          parseInt(req.params.accommodationId),
+          hotelId,
+          roomCategoryId,
+          userId
+        );
+      } else {
+        return res.status(400).json({ message: "Invalid assignment parameters" });
+      }
       
       res.json(updatedRequest);
     } catch (error) {
       console.error("Error assigning hotel:", error);
-      res.status(500).json({ message: "Failed to assign hotel" });
+      res.status(500).json({ message: error.message || "Failed to assign hotel" });
     }
   });
 
@@ -1274,12 +1288,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { status, reason } = req.body;
-      const updatedRequest = await storage.respondToPlayerAccommodationRequest(
-        parseInt(req.params.accommodationId),
-        status,
-        reason,
-        userId
-      );
+      
+      let updatedRequest;
+      if (status === 'hotel_approved') {
+        // First update to approved status
+        updatedRequest = await storage.respondToPlayerAccommodationRequest(
+          parseInt(req.params.accommodationId),
+          status,
+          reason,
+          userId
+        );
+        
+        // Then generate confirmation code and QR code
+        updatedRequest = await storage.confirmPlayerAccommodation(
+          parseInt(req.params.accommodationId)
+        );
+      } else {
+        // For rejection, just update the status
+        updatedRequest = await storage.respondToPlayerAccommodationRequest(
+          parseInt(req.params.accommodationId),
+          status,
+          reason,
+          userId
+        );
+      }
       
       res.json(updatedRequest);
     } catch (error) {

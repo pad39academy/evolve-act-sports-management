@@ -1,387 +1,307 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { format } from "date-fns";
-import { CalendarDays, MapPin, Clock, Users, QrCode, Hotel as HotelIcon, CheckCircle, XCircle, Download, Maximize2, LogOut } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { logoutUser } from "@/lib/auth";
-import type { PlayerBooking, Tournament, Event, Hotel } from "@shared/schema";
-
-interface PlayerBookingsResponse {
-  all: PlayerBooking[];
-  current: PlayerBooking[];
-  past: PlayerBooking[];
-}
-
-interface BookingWithDetails extends PlayerBooking {
-  tournament?: Tournament;
-  event?: Event;
-  hotel?: Hotel;
-}
-
-// QR Code Component with expansion and download
-const QRCodeDisplay = ({ qrCode, bookingId }: { qrCode: string; bookingId: number }) => {
-  const downloadQR = () => {
-    // Create a simple QR code as SVG
-    const qrSize = 200;
-    const cellSize = qrSize / 25; // 25x25 grid for simplicity
-    
-    // Generate a simple pattern based on QR code text
-    const pattern = qrCode.split('').map((char, i) => char.charCodeAt(0) % 2 === 0);
-    
-    let svg = `<svg width="${qrSize}" height="${qrSize}" xmlns="http://www.w3.org/2000/svg">`;
-    svg += `<rect width="${qrSize}" height="${qrSize}" fill="white"/>`;
-    
-    // Create a simple grid pattern
-    for (let row = 0; row < 25; row++) {
-      for (let col = 0; col < 25; col++) {
-        const index = (row * 25 + col) % pattern.length;
-        if (pattern[index]) {
-          svg += `<rect x="${col * cellSize}" y="${row * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`;
-        }
-      }
-    }
-    
-    svg += '</svg>';
-    
-    // Create download link
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `qr-code-booking-${bookingId}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded cursor-pointer hover:bg-blue-100 transition-colors">
-          <QrCode className="w-4 h-4 text-blue-600" />
-          <span className="text-sm font-mono text-blue-800">{qrCode}</span>
-          <Maximize2 className="w-3 h-3 text-blue-600 ml-1" />
-        </div>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>QR Code - Booking #{bookingId}</DialogTitle>
-          <DialogDescription>
-            Scan this QR code for quick check-in at your hotel
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col items-center gap-4">
-          {/* QR Code Display */}
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded flex items-center justify-center">
-              <div className="text-center">
-                <QrCode className="w-24 h-24 text-gray-400 mx-auto mb-2" />
-                <div className="text-xs text-gray-500 font-mono break-all px-2">
-                  {qrCode}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Download Button */}
-          <Button onClick={downloadQR} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Download QR Code
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  User, 
+  LogOut, 
+  Hotel, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  QrCode, 
+  CheckCircle2,
+  XCircle,
+  Clock3
+} from 'lucide-react';
 
 export default function PlayerDashboard() {
-  const [selectedTab, setSelectedTab] = useState("current");
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [user, setUser] = useState<any>(null);
+
+  // Fetch user data
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ['/api/auth/user'],
+    onSuccess: (data) => setUser(data),
+    retry: false
+  });
+
+  // Fetch accommodation requests
+  const { data: accommodationRequests, isLoading: accommodationLoading } = useQuery({
+    queryKey: ['/api/player/accommodation-requests'],
+    enabled: !!userData && userData.role === 'player'
+  });
 
   const handleLogout = async () => {
     try {
-      await logoutUser();
-      toast({
-        title: "Logged out successfully",
-        description: "You have been logged out of your account.",
-      });
-      setLocation("/");
+      window.location.href = '/api/auth/logout';
     } catch (error) {
-      toast({
-        title: "Logout failed",
-        description: "There was an error logging out. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Logout error:', error);
     }
   };
 
-  const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
-    queryKey: ['/api/player/bookings'],
-    queryFn: () => apiRequest('/api/player/bookings', { method: 'GET' }),
-  });
-
-  const { data: tournaments } = useQuery({
-    queryKey: ['/api/tournaments'],
-    queryFn: () => apiRequest('/api/tournaments', { method: 'GET' }),
-  });
-
-  const { data: events } = useQuery({
-    queryKey: ['/api/events'],
-    queryFn: () => apiRequest('/api/events', { method: 'GET' }),
-  });
-
-  const { data: hotels } = useQuery({
-    queryKey: ['/api/hotels'],
-    queryFn: () => apiRequest('/api/hotels', { method: 'GET' }),
-  });
-
-  const enrichBookings = (bookings: PlayerBooking[]): BookingWithDetails[] => {
-    if (!bookings || !tournaments || !events || !hotels) return [];
-
-    return bookings.map(booking => ({
-      ...booking,
-      tournament: tournaments.find((t: Tournament) => t.id === booking.tournamentId),
-      event: events.find((e: Event) => e.id === booking.eventId),
-      hotel: hotels.find((h: Hotel) => h.id === booking.hotelId),
-    }));
-  };
-
-  const currentBookings = enrichBookings(bookingsData?.current || []);
-  const pastBookings = enrichBookings(bookingsData?.past || []);
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'checked_in': return 'bg-blue-100 text-blue-800';
-      case 'checked_out': return 'bg-gray-100 text-gray-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'confirmed':
+        return 'bg-green-100 text-green-800';
+      case 'hotel_approved':
+        return 'bg-blue-100 text-blue-800';
+      case 'hotel_assigned':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'hotel_rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'confirmed': return <CheckCircle className="w-4 h-4" />;
-      case 'checked_in': return <HotelIcon className="w-4 h-4" />;
-      case 'checked_out': return <XCircle className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case 'confirmed':
+        return <CheckCircle2 className="h-4 w-4" />;
+      case 'hotel_approved':
+        return <CheckCircle2 className="h-4 w-4" />;
+      case 'hotel_assigned':
+        return <Clock3 className="h-4 w-4" />;
+      case 'hotel_rejected':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <Clock3 className="h-4 w-4" />;
     }
   };
 
-  const BookingCard = ({ booking }: { booking: BookingWithDetails }) => (
-    <Card className="mb-4 hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-semibold text-gray-900">
-              {booking.event?.name || 'Event Details'}
-            </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
-              {booking.tournament?.name || 'Tournament'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className={getStatusColor(booking.status)}>
-              {getStatusIcon(booking.status)}
-              <span className="ml-1 capitalize">{booking.status.replace('_', ' ')}</span>
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Tournament & Event Details */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Users className="w-4 h-4" />
-              <span>Team: {booking.teamName}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <CalendarDays className="w-4 h-4" />
-              <span>
-                {booking.event?.date ? format(new Date(booking.event.date), 'PPP') : 'Date TBD'}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Clock className="w-4 h-4" />
-              <span>{booking.event?.time || 'Time TBD'}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <MapPin className="w-4 h-4" />
-              <span>{booking.event?.location || 'Location TBD'}</span>
-            </div>
-          </div>
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
 
-          {/* Hotel Details */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-              <HotelIcon className="w-4 h-4" />
-              <span>{booking.hotel?.name || 'Hotel Details'}</span>
-            </div>
-            
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>{booking.hotel?.proximityToVenue}</p>
-              <p className="text-xs">{booking.hotel?.notableFeatures}</p>
-            </div>
-            
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <div>
-                <span className="font-medium">Check-in:</span>
-                <br />
-                {booking.checkInDate ? format(new Date(booking.checkInDate), 'MMM dd') : 'TBD'}
-              </div>
-              <div>
-                <span className="font-medium">Check-out:</span>
-                <br />
-                {booking.checkOutDate ? format(new Date(booking.checkOutDate), 'MMM dd') : 'TBD'}
-              </div>
-            </div>
-
-            {/* Past booking timestamps */}
-            {booking.status === 'checked_out' && booking.checkInTime && booking.checkOutTime && (
-              <div className="flex items-center gap-4 text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                <div>
-                  <span className="font-medium">Checked in:</span>
-                  <br />
-                  {format(new Date(booking.checkInTime), 'MMM dd, h:mm a')}
-                </div>
-                <div>
-                  <span className="font-medium">Checked out:</span>
-                  <br />
-                  {format(new Date(booking.checkOutTime), 'MMM dd, h:mm a')}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* QR Code & Special Requests */}
-        <Separator className="my-4" />
-        
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            {booking.qrCode && (
-              <QRCodeDisplay qrCode={booking.qrCode} bookingId={booking.id} />
-            )}
-            
-            {booking.confirmationCode && (
-              <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded">
-                <span className="text-sm font-medium text-green-800">
-                  Code: {booking.confirmationCode}
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {booking.specialRequests && (
-            <div className="text-sm text-gray-600 italic">
-              Note: {booking.specialRequests}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (bookingsLoading) {
+  if (userLoading || accommodationLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading your bookings...</p>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Player Dashboard</h1>
-            <p className="text-gray-600">
-              View your tournament bookings, hotel details, and event schedules
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <User className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Player Dashboard</h1>
+                <p className="text-sm text-gray-600">Welcome back, {userData?.firstName} {userData?.lastName}</p>
+              </div>
+            </div>
+            <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2">
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
           </div>
-          <Button 
-            onClick={handleLogout} 
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* User Info Card */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Player Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Name:</span>
+                <span className="text-sm">{userData?.firstName} {userData?.lastName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Email:</span>
+                <span className="text-sm">{userData?.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Role:</span>
+                <Badge variant="outline">{userData?.role}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Organization:</span>
+                <span className="text-sm">{userData?.organization}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Account Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Verification:</span>
+                <Badge variant={userData?.isVerified === 'true' ? 'default' : 'secondary'}>
+                  {userData?.isVerified === 'true' ? 'Verified' : 'Pending'}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Accommodations:</span>
+                <span className="text-sm">{accommodationRequests?.length || 0} requests</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="current">
-              Current & Future Bookings ({currentBookings.length})
-            </TabsTrigger>
-            <TabsTrigger value="past">
-              Past Bookings ({pastBookings.length})
-            </TabsTrigger>
-          </TabsList>
+        {/* Accommodation Requests */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Hotel Accommodation Details</h2>
+            <Badge variant="outline" className="flex items-center gap-2">
+              <Hotel className="h-4 w-4" />
+              {accommodationRequests?.length || 0} Requests
+            </Badge>
+          </div>
 
-          <TabsContent value="current" className="space-y-4">
-            {currentBookings.length > 0 ? (
-              currentBookings.map((booking) => (
-                <BookingCard key={booking.id} booking={booking} />
-              ))
-            ) : (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <HotelIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Current Bookings
-                  </h3>
-                  <p className="text-gray-600">
-                    You don't have any current or upcoming tournament bookings.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+          {accommodationRequests && accommodationRequests.length > 0 ? (
+            <div className="grid gap-6">
+              {accommodationRequests.map((request: any) => (
+                <Card key={request.id} className="overflow-hidden">
+                  <CardHeader className="bg-gray-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Hotel className="h-5 w-5 text-blue-600" />
+                          Accommodation Request #{request.id}
+                        </CardTitle>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Team: {request.teamName || 'N/A'}
+                        </p>
+                      </div>
+                      <Badge className={`${getStatusColor(request.status)} flex items-center gap-1`}>
+                        {getStatusIcon(request.status)}
+                        {request.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Accommodation Details */}
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900">Accommodation Details</h4>
+                        
+                        {request.checkInDate && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium">Check-in:</span>
+                            <span>{new Date(request.checkInDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        
+                        {request.checkOutDate && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium">Check-out:</span>
+                            <span>{new Date(request.checkOutDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
 
-          <TabsContent value="past" className="space-y-4">
-            {pastBookings.length > 0 ? (
-              pastBookings.map((booking) => (
-                <BookingCard key={booking.id} booking={booking} />
-              ))
-            ) : (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Past Bookings
-                  </h3>
-                  <p className="text-gray-600">
-                    Your completed tournament bookings will appear here.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+                        {request.checkInTime && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium">Check-in Time:</span>
+                            <span>{formatDateTime(request.checkInTime)}</span>
+                          </div>
+                        )}
+
+                        {request.checkOutTime && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium">Check-out Time:</span>
+                            <span>{formatDateTime(request.checkOutTime)}</span>
+                          </div>
+                        )}
+
+                        {request.accommodationPreferences && (
+                          <div className="text-sm">
+                            <span className="font-medium">Preferences:</span>
+                            <p className="text-gray-600 mt-1">{request.accommodationPreferences}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Hotel & Confirmation Details */}
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900">Hotel Information</h4>
+                        
+                        {request.hotelName && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium">Hotel:</span>
+                            <span>{request.hotelName}</span>
+                          </div>
+                        )}
+
+                        {request.roomCategoryName && (
+                          <div className="text-sm">
+                            <span className="font-medium">Room Category:</span>
+                            <span className="ml-2">{request.roomCategoryName}</span>
+                          </div>
+                        )}
+
+                        {request.confirmationCode && (
+                          <div className="text-sm">
+                            <span className="font-medium">Confirmation Code:</span>
+                            <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">
+                              {request.confirmationCode}
+                            </code>
+                          </div>
+                        )}
+
+                        {request.qrCode && (
+                          <div className="text-sm">
+                            <span className="font-medium">QR Code:</span>
+                            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <QrCode className="h-4 w-4 text-gray-500" />
+                                <code className="text-xs font-mono break-all">{request.qrCode}</code>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status Information */}
+                    {request.hotelResponseReason && (
+                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <h5 className="font-medium text-gray-900 mb-2">Hotel Response</h5>
+                        <p className="text-sm text-gray-600">{request.hotelResponseReason}</p>
+                        {request.hotelRespondedAt && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Responded: {formatDateTime(request.hotelRespondedAt)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Hotel className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Accommodation Requests</h3>
+                <p className="text-gray-600">
+                  You don't have any accommodation requests at this time.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -375,6 +375,9 @@ export const playerAccommodationRequests = pgTable("player_accommodation_request
   hotelRespondedBy: integer("hotel_responded_by").references(() => users.id), // Hotel Manager
   hotelRespondedAt: timestamp("hotel_responded_at"),
   confirmationCode: varchar("confirmation_code", { length: 50 }).unique(),
+  qrCode: varchar("qr_code", { length: 255 }).unique(),
+  checkInTime: timestamp("check_in_time"),
+  checkOutTime: timestamp("check_out_time"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

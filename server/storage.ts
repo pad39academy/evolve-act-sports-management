@@ -49,7 +49,7 @@ import {
   type InsertPlayerAccommodationRequest,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -776,6 +776,85 @@ export class DatabaseStorage implements IStorage {
       .from(playerAccommodationRequests)
       .innerJoin(teamMembers, eq(playerAccommodationRequests.teamMemberId, teamMembers.id))
       .where(eq(teamMembers.userId, playerId));
+  }
+
+  async autoAssignHotelToPlayerAccommodation(accommodationId: number, clusterId: number, assignedBy: number): Promise<PlayerAccommodationRequest> {
+    // Get available hotels in the cluster
+    const availableHotels = await db
+      .select()
+      .from(hotels)
+      .where(eq(hotels.clusterId, clusterId));
+
+    if (availableHotels.length === 0) {
+      throw new Error('No available hotels in the selected cluster');
+    }
+
+    const selectedHotel = availableHotels[0];
+
+    // Get room categories for the selected hotel
+    const roomCategoryList = await db
+      .select()
+      .from(roomCategories)
+      .where(eq(roomCategories.hotelId, selectedHotel.id));
+
+    if (roomCategoryList.length === 0) {
+      throw new Error('No room categories available for the selected hotel');
+    }
+
+    const selectedRoomCategory = roomCategoryList[0];
+    
+    // Assign the hotel and room category
+    const [updatedRequest] = await db
+      .update(playerAccommodationRequests)
+      .set({
+        hotelId: selectedHotel.id,
+        roomCategoryId: selectedRoomCategory.id,
+        clusterId,
+        status: 'hotel_assigned',
+        assignedBy,
+        assignedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(playerAccommodationRequests.id, accommodationId))
+      .returning();
+
+    return updatedRequest;
+  }
+
+  async confirmPlayerAccommodation(accommodationId: number): Promise<PlayerAccommodationRequest> {
+    // Generate confirmation code and QR code
+    const confirmationCode = Math.random().toString(36).substring(2, 15).toUpperCase();
+    const qrCode = `ACCOMMODATION_${accommodationId}_${confirmationCode}`;
+    
+    // Generate check-in and check-out times (assuming 2 PM check-in, 11 AM check-out)
+    const request = await db.select().from(playerAccommodationRequests).where(eq(playerAccommodationRequests.id, accommodationId));
+    if (request.length === 0) {
+      throw new Error('Accommodation request not found');
+    }
+
+    const checkInDate = new Date(request[0].checkInDate!);
+    const checkOutDate = new Date(request[0].checkOutDate!);
+    
+    // Set check-in time to 2:00 PM on check-in date
+    checkInDate.setHours(14, 0, 0, 0);
+    
+    // Set check-out time to 11:00 AM on check-out date
+    checkOutDate.setHours(11, 0, 0, 0);
+
+    const [updatedRequest] = await db
+      .update(playerAccommodationRequests)
+      .set({
+        status: 'confirmed',
+        confirmationCode,
+        qrCode,
+        checkInTime: checkInDate,
+        checkOutTime: checkOutDate,
+        updatedAt: new Date()
+      })
+      .where(eq(playerAccommodationRequests.id, accommodationId))
+      .returning();
+
+    return updatedRequest;
   }
 }
 
