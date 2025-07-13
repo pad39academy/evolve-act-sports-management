@@ -390,6 +390,13 @@ export default function TeamManagerDashboard() {
       await apiRequest('/api/auth/logout', {
         method: 'POST',
       });
+      
+      toast({
+        title: "Logged Out",
+        description: "You have been logged out successfully.",
+      });
+      
+      // Redirect to home page
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
