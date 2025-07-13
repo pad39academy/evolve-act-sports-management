@@ -180,7 +180,7 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
 
     return (
       <div className="flex items-center justify-center">
-        <div className="w-16 h-16 border border-gray-300 rounded bg-white p-1">
+        <div className="w-24 h-24 border border-gray-300 rounded bg-white p-1">
           <img 
             src={qrImageUrl} 
             alt="Check-in QR Code" 
@@ -367,10 +367,10 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
                       )}
                       
                       {/* Reference Code */}
-                      {request.confirmationCode && (
+                      {(request.confirmationCode || request.id) && (
                         <div className="mt-2 p-2 bg-blue-50 rounded border">
                           <div className="text-sm font-medium text-blue-800">
-                            Reference Code: {request.confirmationCode}
+                            Reference Code: {request.confirmationCode || `REQ-${request.id}`}
                           </div>
                         </div>
                       )}
@@ -385,19 +385,19 @@ function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
                       </div>
                       
                       {/* QR Code Display */}
-                      {request.confirmationCode && request.status === 'confirmed' && (
+                      {(request.confirmationCode || request.id) && (
                         <div className="flex flex-col items-center space-y-1">
                           <QRCodeDisplay 
-                            qrData={`Hotel Check-in - ${request.confirmationCode} - ${request.qrCode || 'NO_QR'}`} 
+                            qrData={`Hotel Check-in - ${request.confirmationCode || `REQ-${request.id}`} - ${request.qrCode || `ACCOMMODATION_${request.id}`}`} 
                             isLoading={accommodationLoading}
                           />
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => downloadQRCode(
-                              `Hotel Check-in - ${request.confirmationCode} - ${request.qrCode || 'NO_QR'}`,
+                              `Hotel Check-in - ${request.confirmationCode || `REQ-${request.id}`} - ${request.qrCode || `ACCOMMODATION_${request.id}`}`,
                               `${request.teamMember?.firstName} ${request.teamMember?.lastName}`,
-                              request.confirmationCode
+                              request.confirmationCode || `REQ-${request.id}`
                             )}
                             className="text-xs"
                           >
