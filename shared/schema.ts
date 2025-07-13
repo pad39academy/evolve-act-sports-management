@@ -310,7 +310,6 @@ export const teamRequests = pgTable("team_requests", {
   teamName: varchar("team_name", { length: 255 }).notNull(),
   sport: varchar("sport", { length: 100 }).notNull(),
   tournamentId: integer("tournament_id").references(() => tournaments.id),
-  requestAccommodation: boolean("request_accommodation").default(false),
   specialRequests: text("special_requests"),
   status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
   rejectionReason: text("rejection_reason"),
@@ -335,6 +334,8 @@ export const teamMembers = pgTable("team_members", {
   address: text("address"),
   position: varchar("position", { length: 100 }),
   sport: varchar("sport", { length: 100 }).notNull(),
+  requiresAccommodation: boolean("requires_accommodation").default(false),
+  accommodationPreferences: text("accommodation_preferences"), // Special requests for accommodation
   userId: integer("user_id").references(() => users.id), // If user account exists
   accountCreated: boolean("account_created").default(false),
   createdAt: timestamp("created_at").defaultNow(),

@@ -28,6 +28,8 @@ interface TeamMember {
   address?: string;
   position?: string;
   sport: string;
+  requiresAccommodation?: boolean;
+  accommodationPreferences?: string;
   userId?: number;
   accountCreated?: boolean;
 }
@@ -71,7 +73,6 @@ export default function TeamManagerDashboard() {
     teamName: '',
     sport: '',
     tournamentId: '',
-    requestAccommodation: false,
     specialRequests: ''
   });
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -87,7 +88,9 @@ export default function TeamManagerDashboard() {
     city: '',
     address: '',
     position: '',
-    sport: ''
+    sport: '',
+    requiresAccommodation: false,
+    accommodationPreferences: ''
   });
   const [editingMemberIndex, setEditingMemberIndex] = useState<number | null>(null);
   const [selectedTeamRequest, setSelectedTeamRequest] = useState<TeamRequest | null>(null);
@@ -155,7 +158,6 @@ export default function TeamManagerDashboard() {
       teamName: '',
       sport: '',
       tournamentId: '',
-      requestAccommodation: false,
       specialRequests: ''
     });
     setTeamMembers([]);
@@ -171,7 +173,9 @@ export default function TeamManagerDashboard() {
       city: '',
       address: '',
       position: '',
-      sport: ''
+      sport: '',
+      requiresAccommodation: false,
+      accommodationPreferences: ''
     });
     setEditingMemberIndex(null);
   };
@@ -206,7 +210,9 @@ export default function TeamManagerDashboard() {
       city: '',
       address: '',
       position: '',
-      sport: ''
+      sport: '',
+      requiresAccommodation: false,
+      accommodationPreferences: ''
     });
     
     toast({ title: 'Member added successfully' });
@@ -404,15 +410,7 @@ export default function TeamManagerDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="accommodation"
-                      checked={teamForm.requestAccommodation}
-                      onChange={(e) => setTeamForm({...teamForm, requestAccommodation: e.target.checked})}
-                    />
-                    <Label htmlFor="accommodation">Request Accommodation</Label>
-                  </div>
+
                 </div>
 
                 <div>
@@ -541,6 +539,26 @@ export default function TeamManagerDashboard() {
                         placeholder="Player position"
                       />
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="requiresAccommodation"
+                        checked={currentMember.requiresAccommodation}
+                        onChange={(e) => setCurrentMember({...currentMember, requiresAccommodation: e.target.checked})}
+                      />
+                      <Label htmlFor="requiresAccommodation">Requires Accommodation</Label>
+                    </div>
+                    {currentMember.requiresAccommodation && (
+                      <div className="md:col-span-2">
+                        <Label htmlFor="accommodationPreferences">Accommodation Preferences</Label>
+                        <Textarea
+                          id="accommodationPreferences"
+                          value={currentMember.accommodationPreferences}
+                          onChange={(e) => setCurrentMember({...currentMember, accommodationPreferences: e.target.value})}
+                          placeholder="Special accommodation requirements or preferences"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4 flex space-x-2">
                     <Button onClick={addMemberToTeam}>
@@ -561,7 +579,9 @@ export default function TeamManagerDashboard() {
                           city: '',
                           address: '',
                           position: '',
-                          sport: ''
+                          sport: '',
+                          requiresAccommodation: false,
+                          accommodationPreferences: ''
                         });
                       }}>
                         Cancel Edit
@@ -581,6 +601,14 @@ export default function TeamManagerDashboard() {
                             <div className="font-medium">{member.firstName} {member.lastName}</div>
                             <div className="text-sm text-gray-600">{member.email} • {member.phoneCountryCode} {member.phoneNumber}</div>
                             <div className="text-sm text-gray-600">{member.gender} • {member.position || 'No position'}</div>
+                            {member.requiresAccommodation && (
+                              <div className="text-sm text-blue-600">
+                                Requires Accommodation
+                                {member.accommodationPreferences && (
+                                  <span className="text-gray-500"> - {member.accommodationPreferences}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="flex space-x-2">
                             <Button variant="outline" size="sm" onClick={() => editMember(index)}>
@@ -634,6 +662,14 @@ export default function TeamManagerDashboard() {
                     <div className="text-sm"><strong>Gender:</strong> {member.gender}</div>
                     <div className="text-sm"><strong>Position:</strong> {member.position || 'Not specified'}</div>
                     <div className="text-sm"><strong>City:</strong> {member.city || 'Not specified'}</div>
+                    {member.requiresAccommodation && (
+                      <div className="text-sm text-blue-600">
+                        <strong>Accommodation:</strong> Required
+                        {member.accommodationPreferences && (
+                          <div className="text-gray-600 mt-1">{member.accommodationPreferences}</div>
+                        )}
+                      </div>
+                    )}
                     {member.accountCreated && (
                       <Badge variant="secondary">Account Exists</Badge>
                     )}

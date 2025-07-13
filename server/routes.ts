@@ -1045,7 +1045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const { teamName, sport, tournamentId, requestAccommodation, specialRequests, members } = req.body;
+      const { teamName, sport, tournamentId, specialRequests, members } = req.body;
       
       // Create team request
       const teamRequest = await storage.createTeamRequest({
@@ -1053,7 +1053,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         teamName,
         sport,
         tournamentId,
-        requestAccommodation,
         specialRequests
       });
       
@@ -1077,6 +1076,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           address: member.address,
           position: member.position,
           sport: member.sport,
+          requiresAccommodation: member.requiresAccommodation || false,
+          accommodationPreferences: member.accommodationPreferences,
           userId: existingUser?.id,
           accountCreated: !!existingUser
         });
