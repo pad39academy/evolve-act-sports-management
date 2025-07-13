@@ -164,6 +164,7 @@ export interface IStorage {
   assignHotelToPlayerAccommodation(accommodationId: number, hotelId: number, roomCategoryId: number, assignedBy: number): Promise<PlayerAccommodationRequest>;
   respondToPlayerAccommodationRequest(accommodationId: number, status: string, reason?: string, respondedBy?: number): Promise<PlayerAccommodationRequest>;
   getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]>;
+  getRejectedAccommodationRequests(): Promise<PlayerAccommodationRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -733,6 +734,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(playerAccommodationRequests.id, accommodationId))
       .returning();
     return updatedRequest;
+  }
+
+  async getRejectedAccommodationRequests(): Promise<PlayerAccommodationRequest[]> {
+    return await db.select().from(playerAccommodationRequests).where(eq(playerAccommodationRequests.status, 'rejected'));
   }
 
   async getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]> {

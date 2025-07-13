@@ -1305,6 +1305,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Event manager rejected accommodation requests route
+  app.get('/api/event-manager/rejected-accommodation-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const rejectedRequests = await storage.getRejectedAccommodationRequests();
+      res.json(rejectedRequests);
+    } catch (error) {
+      console.error("Error fetching rejected accommodation requests:", error);
+      res.status(500).json({ message: "Failed to fetch rejected accommodation requests" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

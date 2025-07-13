@@ -66,6 +66,32 @@ interface BookingRequest {
   updatedAt: string;
 }
 
+interface AccommodationRequest {
+  id: number;
+  teamMemberId: number;
+  teamRequestId: number;
+  clusterId: number;
+  hotelId: number;
+  roomCategoryId: number;
+  checkInDate: string;
+  checkOutDate: string;
+  accommodationPreferences: string;
+  status: string;
+  assignedBy: number;
+  assignedAt: string;
+  hotelResponseReason: string;
+  hotelRespondedBy: number;
+  hotelRespondedAt: string;
+  confirmationCode: string;
+  createdAt: string;
+  updatedAt: string;
+  // Related data from joins
+  teamMemberName?: string;
+  teamName?: string;
+  hotelName?: string;
+  roomCategoryName?: string;
+}
+
 export default function HotelManagerDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -123,6 +149,11 @@ export default function HotelManagerDashboard() {
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery({
     queryKey: ['/api/hotel-manager/hotels', selectedHotel?.id, 'pending-requests'],
     enabled: !!selectedHotel?.id,
+  });
+
+  // Fetch accommodation requests for all hotels
+  const { data: accommodationRequests = [] } = useQuery({
+    queryKey: ['/api/hotel-manager/accommodation-requests'],
   });
 
   // Hotel mutations
@@ -324,6 +355,53 @@ export default function HotelManagerDashboard() {
     },
   });
 
+  // Accommodation response mutations
+  const approveAccommodationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest(`/api/hotel-manager/accommodation-requests/${id}/respond`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'approved' }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Accommodation Approved",
+        description: "Player accommodation request has been approved",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/hotel-manager/accommodation-requests'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve accommodation request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectAccommodationMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
+      return await apiRequest(`/api/hotel-manager/accommodation-requests/${id}/respond`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'rejected', reason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Accommodation Rejected",
+        description: "Player accommodation request has been rejected",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/hotel-manager/accommodation-requests'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject accommodation request",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -449,6 +527,13 @@ export default function HotelManagerDashboard() {
     const reason = prompt("Enter rejection reason:");
     if (reason) {
       rejectRequestMutation.mutate({ id: requestId, reason });
+    }
+  };
+
+  const handleRejectAccommodation = (requestId: number) => {
+    const reason = prompt("Enter rejection reason:");
+    if (reason) {
+      rejectAccommodationMutation.mutate({ id: requestId, reason });
     }
   };
 
@@ -741,10 +826,11 @@ export default function HotelManagerDashboard() {
             </div>
 
             <Tabs defaultValue="rooms" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="rooms">Room Categories</TabsTrigger>
                 <TabsTrigger value="requests">Booking Requests</TabsTrigger>
                 <TabsTrigger value="pending">Pending Approval</TabsTrigger>
+                <TabsTrigger value="accommodation">Accommodation Requests</TabsTrigger>
               </TabsList>
 
               {/* Room Categories Tab */}
@@ -1024,6 +1110,72 @@ export default function HotelManagerDashboard() {
                       </CardContent>
                     </Card>
                   ))}
+                </div>
+              </TabsContent>
+
+              {/* Accommodation Requests Tab */}
+              <TabsContent value="accommodation" className="mt-6">
+                <h3 className="text-lg font-medium mb-4">Player Accommodation Requests</h3>
+                <div className="space-y-4">
+                  {accommodationRequests?.filter((request: AccommodationRequest) => request.status === 'hotel_assigned').map((request: AccommodationRequest) => (
+                    <Card key={request.id} className="border-blue-200 bg-blue-50">
+                      <CardContent className="pt-6">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Users className="h-5 w-5 text-blue-600" />
+                              <h4 className="font-medium">{request.teamMemberName || 'Team Member'}</h4>
+                              <Badge variant="outline">Team: {request.teamName || 'N/A'}</Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                              <div>
+                                <p>Hotel: {request.hotelName || 'N/A'}</p>
+                                <p>Room Category: {request.roomCategoryName || 'N/A'}</p>
+                                <p>Status: {request.status}</p>
+                              </div>
+                              <div>
+                                <p>Assigned: {request.assignedAt ? new Date(request.assignedAt).toLocaleDateString() : 'N/A'}</p>
+                                {request.accommodationPreferences && (
+                                  <p className="mt-2">
+                                    <span className="font-medium">Preferences:</span> {request.accommodationPreferences}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              onClick={() => approveAccommodationMutation.mutate(request.id)}
+                              disabled={approveAccommodationMutation.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRejectAccommodation(request.id)}
+                              disabled={rejectAccommodationMutation.isPending}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {accommodationRequests?.filter((request: AccommodationRequest) => request.status === 'hotel_assigned').length === 0 && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-center py-8">
+                          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600">No accommodation requests pending your approval</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

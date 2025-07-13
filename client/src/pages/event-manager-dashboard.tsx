@@ -208,6 +208,12 @@ export default function EventManagerDashboard() {
     retry: false,
   });
 
+  // Fetch rejected accommodation requests
+  const { data: rejectedAccommodationRequests } = useQuery({
+    queryKey: ['/api/event-manager/rejected-accommodation-requests'],
+    retry: false,
+  });
+
   // Tournament mutations
   const createTournamentMutation = useMutation({
     mutationFn: (data: any) => {
@@ -732,12 +738,13 @@ export default function EventManagerDashboard() {
       {/* Main Content */}
       <div className="container mx-auto p-6">
         <Tabs defaultValue="tournaments" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="clusters">Hotel Clusters</TabsTrigger>
           <TabsTrigger value="hotels">Assign Hotels</TabsTrigger>
           <TabsTrigger value="team-approvals">Team Approvals</TabsTrigger>
+          <TabsTrigger value="rejected-accommodations">Rejected Accommodations</TabsTrigger>
         </TabsList>
         
         <TabsContent value="tournaments" className="space-y-4">
@@ -1020,6 +1027,76 @@ export default function EventManagerDashboard() {
             <div className="text-center py-8 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No pending team requests</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Rejected Accommodations Tab */}
+        <TabsContent value="rejected-accommodations" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Rejected Accommodation Requests</h2>
+          </div>
+          
+          <div className="space-y-4">
+            {rejectedAccommodationRequests?.map((request: any) => (
+              <Card key={request.id} className="border-red-200 bg-red-50">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {request.teamMemberName || 'Team Member'} - {request.teamName || 'Unknown Team'}
+                      </CardTitle>
+                      <CardDescription>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="flex items-center gap-1">
+                            <Hotel className="w-4 h-4" />
+                            Hotel: {request.hotelName || 'N/A'}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            Rejected: {request.hotelRespondedAt ? new Date(request.hotelRespondedAt).toLocaleDateString() : 'N/A'}
+                          </span>
+                        </div>
+                        {request.hotelResponseReason && (
+                          <p className="mt-2 text-sm text-red-600">
+                            <strong>Rejection Reason:</strong> {request.hotelResponseReason}
+                          </p>
+                        )}
+                        {request.accommodationPreferences && (
+                          <p className="mt-2 text-sm text-gray-600">
+                            <strong>Preferences:</strong> {request.accommodationPreferences}
+                          </p>
+                        )}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">
+                        Rejected
+                      </Badge>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTeamRequest({ 
+                            id: request.teamRequestId, 
+                            teamName: request.teamName 
+                          });
+                          setShowAccommodationDialog(true);
+                        }}
+                      >
+                        <Hotel className="w-4 h-4 mr-1" />
+                        Reassign
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+          
+          {(!rejectedAccommodationRequests || rejectedAccommodationRequests.length === 0) && (
+            <div className="text-center py-8 text-gray-500">
+              <Hotel className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No rejected accommodation requests</p>
             </div>
           )}
         </TabsContent>
