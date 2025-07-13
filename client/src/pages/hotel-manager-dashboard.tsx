@@ -29,6 +29,7 @@ interface Hotel {
   contactInfo: string;
   approved: string;
   autoApproveBookings: boolean;
+  bookingType: string; // 'on_availability' or 'pay_per_use'
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +43,9 @@ interface RoomCategory {
   pricePerNight: string;
   amenities: string;
   description: string;
+  singleSharingRooms: number;
+  twinSharingRooms: number;
+  tripleSharingRooms: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -116,6 +120,7 @@ export default function HotelManagerDashboard() {
     alternatePhone: '',
     alternateEmail: '',
     autoApproveBookings: false,
+    bookingType: 'on_availability', // 'on_availability' or 'pay_per_use'
   });
 
   // Room form state
@@ -126,6 +131,9 @@ export default function HotelManagerDashboard() {
     pricePerNight: '',
     amenities: '',
     description: '',
+    singleSharingRooms: 0,
+    twinSharingRooms: 0,
+    tripleSharingRooms: 0,
   });
 
   // Fetch hotels
@@ -434,6 +442,7 @@ export default function HotelManagerDashboard() {
       alternatePhone: '',
       alternateEmail: '',
       autoApproveBookings: false,
+      bookingType: 'on_availability',
     });
   };
 
@@ -445,6 +454,9 @@ export default function HotelManagerDashboard() {
       pricePerNight: '',
       amenities: '',
       description: '',
+      singleSharingRooms: 0,
+      twinSharingRooms: 0,
+      tripleSharingRooms: 0,
     });
   };
 
@@ -506,6 +518,7 @@ export default function HotelManagerDashboard() {
       alternatePhone: contactData.alternatePhone || '',
       alternateEmail: contactData.alternateEmail || '',
       autoApproveBookings: hotel.autoApproveBookings,
+      bookingType: hotel.bookingType || 'on_availability',
     });
     setIsHotelDialogOpen(true);
   };
@@ -519,6 +532,9 @@ export default function HotelManagerDashboard() {
       pricePerNight: room.pricePerNight,
       amenities: room.amenities,
       description: room.description,
+      singleSharingRooms: room.singleSharingRooms || 0,
+      twinSharingRooms: room.twinSharingRooms || 0,
+      tripleSharingRooms: room.tripleSharingRooms || 0,
     });
     setIsRoomDialogOpen(true);
   };
@@ -711,13 +727,34 @@ export default function HotelManagerDashboard() {
                       placeholder="WiFi, pool, gym, etc."
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="bookingType">Booking Type</Label>
+                    <Select value={hotelForm.bookingType} onValueChange={(value) => setHotelForm({ ...hotelForm, bookingType: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select booking type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="on_availability">On Availability</SelectItem>
+                        <SelectItem value="pay_per_use">Pay Per Use</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {hotelForm.bookingType === 'pay_per_use' 
+                        ? 'Fixed rooms allocated to sports with sharing options. Auto-approved bookings.' 
+                        : 'Hotel manager controls availability and approves bookings manually.'}
+                    </p>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="autoApprove"
                       checked={hotelForm.autoApproveBookings}
                       onCheckedChange={(checked) => setHotelForm({ ...hotelForm, autoApproveBookings: checked })}
+                      disabled={hotelForm.bookingType === 'pay_per_use'}
                     />
                     <Label htmlFor="autoApprove">Auto-approve booking requests</Label>
+                    {hotelForm.bookingType === 'pay_per_use' && (
+                      <span className="text-sm text-gray-500">(Always enabled for pay per use)</span>
+                    )}
                   </div>
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button
@@ -786,6 +823,12 @@ export default function HotelManagerDashboard() {
                         {hotel.approved === 'approved' ? 'Approved' : 
                          hotel.approved === 'pending' ? 'Pending' : 
                          'Rejected'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Booking Type</span>
+                      <Badge variant={hotel.bookingType === 'pay_per_use' ? "default" : "secondary"}>
+                        {hotel.bookingType === 'pay_per_use' ? 'Pay Per Use' : 'On Availability'}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
@@ -881,28 +924,69 @@ export default function HotelManagerDashboard() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="totalRooms">Total Rooms</Label>
-                            <Input
-                              id="totalRooms"
-                              type="number"
-                              value={roomForm.totalRooms}
-                              onChange={(e) => setRoomForm({ ...roomForm, totalRooms: parseInt(e.target.value) || 0 })}
-                              required
-                            />
+                        {selectedHotel?.bookingType === 'pay_per_use' ? (
+                          <>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Room Sharing Configuration</Label>
+                              <p className="text-sm text-gray-600">Configure fixed room allocation for sports events</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <Label htmlFor="singleSharingRooms">Single Sharing Rooms</Label>
+                                <Input
+                                  id="singleSharingRooms"
+                                  type="number"
+                                  value={roomForm.singleSharingRooms}
+                                  onChange={(e) => setRoomForm({ ...roomForm, singleSharingRooms: parseInt(e.target.value) || 0 })}
+                                  min="0"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="twinSharingRooms">Twin Sharing Rooms</Label>
+                                <Input
+                                  id="twinSharingRooms"
+                                  type="number"
+                                  value={roomForm.twinSharingRooms}
+                                  onChange={(e) => setRoomForm({ ...roomForm, twinSharingRooms: parseInt(e.target.value) || 0 })}
+                                  min="0"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="tripleSharingRooms">Triple Sharing Rooms</Label>
+                                <Input
+                                  id="tripleSharingRooms"
+                                  type="number"
+                                  value={roomForm.tripleSharingRooms}
+                                  onChange={(e) => setRoomForm({ ...roomForm, tripleSharingRooms: parseInt(e.target.value) || 0 })}
+                                  min="0"
+                                />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="totalRooms">Total Rooms</Label>
+                              <Input
+                                id="totalRooms"
+                                type="number"
+                                value={roomForm.totalRooms}
+                                onChange={(e) => setRoomForm({ ...roomForm, totalRooms: parseInt(e.target.value) || 0 })}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="availableRooms">Available Rooms</Label>
+                              <Input
+                                id="availableRooms"
+                                type="number"
+                                value={roomForm.availableRooms}
+                                onChange={(e) => setRoomForm({ ...roomForm, availableRooms: parseInt(e.target.value) || 0 })}
+                                required
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <Label htmlFor="availableRooms">Available Rooms</Label>
-                            <Input
-                              id="availableRooms"
-                              type="number"
-                              value={roomForm.availableRooms}
-                              onChange={(e) => setRoomForm({ ...roomForm, availableRooms: parseInt(e.target.value) || 0 })}
-                              required
-                            />
-                          </div>
-                        </div>
+                        )}
                         <div>
                           <Label htmlFor="amenities">Amenities</Label>
                           <Textarea
@@ -970,14 +1054,33 @@ export default function HotelManagerDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Total Rooms</span>
-                            <Badge variant="secondary">{room.totalRooms}</Badge>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Available</span>
-                            <Badge variant="outline">{room.availableRooms}</Badge>
-                          </div>
+                          {selectedHotel?.bookingType === 'pay_per_use' ? (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Single Sharing</span>
+                                <Badge variant="secondary">{room.singleSharingRooms || 0}</Badge>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Twin Sharing</span>
+                                <Badge variant="secondary">{room.twinSharingRooms || 0}</Badge>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Triple Sharing</span>
+                                <Badge variant="secondary">{room.tripleSharingRooms || 0}</Badge>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Total Rooms</span>
+                                <Badge variant="secondary">{room.totalRooms}</Badge>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Available</span>
+                                <Badge variant="outline">{room.availableRooms}</Badge>
+                              </div>
+                            </>
+                          )}
                           {room.description && (
                             <p className="text-sm text-gray-600 mt-2">{room.description}</p>
                           )}

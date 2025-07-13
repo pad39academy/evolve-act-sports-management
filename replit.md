@@ -208,6 +208,18 @@ The system includes 21 pre-approved sample users across all roles:
 
 ## Recent Changes (July 13, 2025)
 
+### Hotel Booking Categorization System - IMPLEMENTED ✅
+- **Two Booking Categories Added** - "Pay Per Use" and "On Availability" hotel booking types
+- **Pay Per Use Hotels** - Fixed room allocation with sharing options (single/twin/triple sharing)
+- **On Availability Hotels** - Traditional hotel manager approval workflow with dynamic availability
+- **Auto-Approval Logic** - Pay-per-use hotels automatically approve accommodations when assigned by event managers
+- **Sharing Configuration** - Room categories now support single, twin, and triple sharing configurations for sports events
+- **UI Updates** - Hotel manager dashboard updated with booking type selection and sharing room configuration
+- **Database Schema** - Added booking_type to hotels table and sharing fields to room_categories table
+- **Event Manager Integration** - Assignment workflow checks hotel booking type and auto-approves for pay-per-use hotels
+
+## Recent Changes (July 13, 2025)
+
 ### Player-Level Accommodation System Implementation - COMPLETED ✅
 - **Database Schema Updates** - Added player_accommodation_requests table with complete workflow fields
 - **Team Member Accommodation Fields** - Moved accommodation preferences from team level to individual player level

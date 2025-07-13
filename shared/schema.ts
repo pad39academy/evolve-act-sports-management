@@ -242,6 +242,7 @@ export const hotels = pgTable("hotels", {
   contactInfo: text("contact_info"), // JSON object with phone, email, etc.
   approved: varchar("approved", { length: 10 }).default("pending"),
   autoApproveBookings: boolean("auto_approve_bookings").default(false),
+  bookingType: varchar("booking_type", { length: 20 }).default("on_availability"), // on_availability, pay_per_use
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -256,6 +257,10 @@ export const roomCategories = pgTable("room_categories", {
   pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }),
   amenities: text("amenities"), // JSON array of amenities
   description: text("description"),
+  // Pay per use specific fields
+  singleSharingRooms: integer("single_sharing_rooms").default(0),
+  twinSharingRooms: integer("twin_sharing_rooms").default(0),
+  tripleSharingRooms: integer("triple_sharing_rooms").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -368,6 +373,7 @@ export const playerAccommodationRequests = pgTable("player_accommodation_request
   checkInDate: date("check_in_date"),
   checkOutDate: date("check_out_date"),
   accommodationPreferences: text("accommodation_preferences"),
+  sharingType: varchar("sharing_type", { length: 20 }).default("twin"), // single, twin, triple
   status: varchar("status", { length: 50 }).default("pending"), // pending, hotel_assigned, hotel_approved, hotel_rejected, confirmed
   assignedBy: integer("assigned_by").references(() => users.id), // Event Manager who assigned
   assignedAt: timestamp("assigned_at"),
@@ -378,6 +384,18 @@ export const playerAccommodationRequests = pgTable("player_accommodation_request
   qrCode: varchar("qr_code", { length: 255 }).unique(),
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Room availability tracking for pay-per-use hotels
+export const roomAvailability = pgTable("room_availability", {
+  id: serial("id").primaryKey(),
+  roomCategoryId: integer("room_category_id").references(() => roomCategories.id),
+  date: date("date").notNull(),
+  singleSharingAvailable: integer("single_sharing_available").default(0),
+  twinSharingAvailable: integer("twin_sharing_available").default(0),
+  tripleSharingAvailable: integer("triple_sharing_available").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -397,6 +415,7 @@ export const insertTeamRequestSchema = createInsertSchema(teamRequests);
 export const insertTeamMemberSchema = createInsertSchema(teamMembers);
 export const insertAccountCreationRequestSchema = createInsertSchema(accountCreationRequests);
 export const insertPlayerAccommodationRequestSchema = createInsertSchema(playerAccommodationRequests);
+export const insertRoomAvailabilitySchema = createInsertSchema(roomAvailability);
 
 // Types
 export type City = typeof cities.$inferSelect;
@@ -427,3 +446,5 @@ export type AccountCreationRequest = typeof accountCreationRequests.$inferSelect
 export type InsertAccountCreationRequest = z.infer<typeof insertAccountCreationRequestSchema>;
 export type PlayerAccommodationRequest = typeof playerAccommodationRequests.$inferSelect;
 export type InsertPlayerAccommodationRequest = z.infer<typeof insertPlayerAccommodationRequestSchema>;
+export type RoomAvailability = typeof roomAvailability.$inferSelect;
+export type InsertRoomAvailability = z.infer<typeof insertRoomAvailabilitySchema>;

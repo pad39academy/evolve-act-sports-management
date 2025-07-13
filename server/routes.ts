@@ -1243,6 +1243,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           roomCategoryId,
           userId
         );
+        
+        // Check if this is a pay-per-use hotel for auto-approval
+        const hotel = await storage.getHotelById(hotelId);
+        if (hotel && hotel.bookingType === 'pay_per_use') {
+          // Auto-approve for pay-per-use hotels
+          updatedRequest = await storage.respondToPlayerAccommodationRequest(
+            parseInt(req.params.accommodationId),
+            'hotel_approved',
+            'Auto-approved for pay-per-use hotel',
+            userId
+          );
+          
+          // Generate confirmation code and QR code
+          updatedRequest = await storage.confirmPlayerAccommodation(
+            parseInt(req.params.accommodationId)
+          );
+        }
       } else {
         return res.status(400).json({ message: "Invalid assignment parameters" });
       }

@@ -78,6 +78,7 @@ export interface IStorage {
 
   // Hotel management operations
   getHotelsByManager(managerId: number): Promise<Hotel[]>;
+  getHotelById(hotelId: number): Promise<Hotel | undefined>;
   createHotel(hotel: InsertHotel): Promise<Hotel>;
   updateHotel(id: number, hotel: Partial<InsertHotel>): Promise<Hotel>;
   deleteHotel(id: number): Promise<void>;
@@ -324,6 +325,11 @@ export class DatabaseStorage implements IStorage {
   // Hotel management operations
   async getHotelsByManager(managerId: number): Promise<Hotel[]> {
     return await db.select().from(hotels).where(eq(hotels.managerId, managerId));
+  }
+
+  async getHotelById(hotelId: number): Promise<Hotel | undefined> {
+    const [hotel] = await db.select().from(hotels).where(eq(hotels.id, hotelId));
+    return hotel;
   }
 
   async createHotel(hotel: InsertHotel): Promise<Hotel> {
