@@ -74,43 +74,6 @@ export default function Login() {
               <p className="text-gray-600">Sign in to your Evolve Act account</p>
             </div>
 
-            {/* Quick Test Login */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="text-sm font-medium text-blue-900 mb-2">Quick Test Login</h3>
-              <Button 
-                onClick={async () => {
-                  setIsLoading(true);
-                  try {
-                    const result = await loginUser({
-                      email: "virat.kohli@example.com",
-                      password: "Test@123"
-                    });
-                    if (result.success) {
-                      toast({
-                        title: "Login Successful",
-                        description: `Welcome back, ${result.user.firstName}!`,
-                      });
-                      setLocation("/dashboard");
-                    } else {
-                      throw new Error(result.message);
-                    }
-                  } catch (error: any) {
-                    toast({
-                      title: "Login Failed",
-                      description: error.message || "Login failed",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                className="w-full mb-2"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing In..." : "Login as Virat Kohli"}
-              </Button>
-            </div>
-
             {/* Login Form */}
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* Email */}
