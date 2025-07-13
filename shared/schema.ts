@@ -373,6 +373,14 @@ export const playerAccommodationRequests = pgTable("player_accommodation_request
   checkInDate: date("check_in_date"),
   checkOutDate: date("check_out_date"),
   accommodationPreferences: text("accommodation_preferences"),
+  // Check-in/Check-out status tracking
+  checkInStatus: varchar("check_in_status", { length: 20 }).default("pending"), // pending, checked_in
+  checkOutStatus: varchar("check_out_status", { length: 20 }).default("pending"), // pending, checked_out
+  actualCheckInTime: timestamp("actual_check_in_time"),
+  actualCheckOutTime: timestamp("actual_check_out_time"),
+  checkedInBy: integer("checked_in_by").references(() => users.id), // Team Manager ID
+  checkedOutBy: integer("checked_out_by").references(() => users.id), // Team Manager ID
+  isEarlyCheckout: boolean("is_early_checkout").default(false),
   sharingType: varchar("sharing_type", { length: 20 }).default("twin"), // single, twin, triple
   status: varchar("status", { length: 50 }).default("pending"), // pending, hotel_assigned, hotel_approved, hotel_rejected, confirmed
   assignedBy: integer("assigned_by").references(() => users.id), // Event Manager who assigned

@@ -166,6 +166,12 @@ export interface IStorage {
   respondToPlayerAccommodationRequest(accommodationId: number, status: string, reason?: string, respondedBy?: number): Promise<PlayerAccommodationRequest>;
   getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]>;
   getRejectedAccommodationRequests(): Promise<PlayerAccommodationRequest[]>;
+  
+  // Bulk check-in/check-out operations for team managers
+  bulkCheckInPlayers(teamRequestId: number, checkedInBy: number): Promise<PlayerAccommodationRequest[]>;
+  bulkCheckOutPlayers(teamRequestId: number, checkedOutBy: number, isEarlyCheckout?: boolean): Promise<PlayerAccommodationRequest[]>;
+  getCheckedInPlayersByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]>;
+  getCheckedOutPlayersByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -914,6 +920,132 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(hotels.id, hotelId));
     }
+  }
+
+  // Bulk check-in players for a team
+  async bulkCheckInPlayers(teamRequestId: number, checkedInBy: number): Promise<PlayerAccommodationRequest[]> {
+    const currentTime = new Date();
+    
+    // Get all confirmed accommodations for this team that are not yet checked in
+    const accommodations = await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.status, 'confirmed'),
+          eq(playerAccommodationRequests.checkInStatus, 'pending')
+        )
+      );
+
+    if (accommodations.length === 0) {
+      return [];
+    }
+
+    // Update all accommodations to checked in
+    await db
+      .update(playerAccommodationRequests)
+      .set({
+        checkInStatus: 'checked_in',
+        actualCheckInTime: currentTime,
+        checkedInBy: checkedInBy,
+        updatedAt: currentTime
+      })
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.status, 'confirmed'),
+          eq(playerAccommodationRequests.checkInStatus, 'pending')
+        )
+      );
+
+    // Return updated accommodations
+    return await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.checkInStatus, 'checked_in')
+        )
+      );
+  }
+
+  // Bulk check-out players for a team
+  async bulkCheckOutPlayers(teamRequestId: number, checkedOutBy: number, isEarlyCheckout: boolean = false): Promise<PlayerAccommodationRequest[]> {
+    const currentTime = new Date();
+    
+    // Get all checked-in accommodations for this team that are not yet checked out
+    const accommodations = await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.checkInStatus, 'checked_in'),
+          eq(playerAccommodationRequests.checkOutStatus, 'pending')
+        )
+      );
+
+    if (accommodations.length === 0) {
+      return [];
+    }
+
+    // Update all accommodations to checked out
+    await db
+      .update(playerAccommodationRequests)
+      .set({
+        checkOutStatus: 'checked_out',
+        actualCheckOutTime: currentTime,
+        checkedOutBy: checkedOutBy,
+        isEarlyCheckout: isEarlyCheckout,
+        updatedAt: currentTime
+      })
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.checkInStatus, 'checked_in'),
+          eq(playerAccommodationRequests.checkOutStatus, 'pending')
+        )
+      );
+
+    // Return updated accommodations
+    return await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.checkOutStatus, 'checked_out')
+        )
+      );
+  }
+
+  // Get checked-in players by team request
+  async getCheckedInPlayersByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]> {
+    return await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.checkInStatus, 'checked_in'),
+          eq(playerAccommodationRequests.checkOutStatus, 'pending')
+        )
+      );
+  }
+
+  // Get checked-out players by team request
+  async getCheckedOutPlayersByTeamRequest(teamRequestId: number): Promise<PlayerAccommodationRequest[]> {
+    return await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(
+        and(
+          eq(playerAccommodationRequests.teamRequestId, teamRequestId),
+          eq(playerAccommodationRequests.checkOutStatus, 'checked_out')
+        )
+      );
   }
 }
 

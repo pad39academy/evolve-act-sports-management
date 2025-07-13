@@ -1130,6 +1130,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk check-in/check-out routes for team managers
+  app.post('/api/team-manager/team-requests/:id/bulk-checkin', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const teamRequestId = parseInt(req.params.id);
+      const checkedInPlayers = await storage.bulkCheckInPlayers(teamRequestId, userId);
+      res.json({ 
+        message: `Successfully checked in ${checkedInPlayers.length} players`,
+        checkedInPlayers 
+      });
+    } catch (error) {
+      console.error("Error bulk checking in players:", error);
+      res.status(500).json({ message: "Failed to bulk check in players" });
+    }
+  });
+
+  app.post('/api/team-manager/team-requests/:id/bulk-checkout', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const teamRequestId = parseInt(req.params.id);
+      const { isEarlyCheckout } = req.body;
+      const checkedOutPlayers = await storage.bulkCheckOutPlayers(teamRequestId, userId, isEarlyCheckout);
+      res.json({ 
+        message: `Successfully checked out ${checkedOutPlayers.length} players${isEarlyCheckout ? ' (early checkout)' : ''}`,
+        checkedOutPlayers 
+      });
+    } catch (error) {
+      console.error("Error bulk checking out players:", error);
+      res.status(500).json({ message: "Failed to bulk check out players" });
+    }
+  });
+
+  // Get checked-in players for a team
+  app.get('/api/team-manager/team-requests/:id/checked-in', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const teamRequestId = parseInt(req.params.id);
+      const checkedInPlayers = await storage.getCheckedInPlayersByTeamRequest(teamRequestId);
+      res.json(checkedInPlayers);
+    } catch (error) {
+      console.error("Error fetching checked-in players:", error);
+      res.status(500).json({ message: "Failed to fetch checked-in players" });
+    }
+  });
+
+  // Get checked-out players for a team
+  app.get('/api/team-manager/team-requests/:id/checked-out', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const teamRequestId = parseInt(req.params.id);
+      const checkedOutPlayers = await storage.getCheckedOutPlayersByTeamRequest(teamRequestId);
+      res.json(checkedOutPlayers);
+    } catch (error) {
+      console.error("Error fetching checked-out players:", error);
+      res.status(500).json({ message: "Failed to fetch checked-out players" });
+    }
+  });
+
+  // Get accommodation requests for a team (for team manager to track status)
+  app.get('/api/team-manager/team-requests/:id/accommodation-requests', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'team_manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const teamRequestId = parseInt(req.params.id);
+      const accommodationRequests = await storage.getPlayerAccommodationRequestsByTeamRequest(teamRequestId);
+      res.json(accommodationRequests);
+    } catch (error) {
+      console.error("Error fetching accommodation requests:", error);
+      res.status(500).json({ message: "Failed to fetch accommodation requests" });
+    }
+  });
+
   // Event Manager and Admin routes for team approval
   app.get('/api/team-approvals/pending', requireAuth, async (req: any, res) => {
     try {

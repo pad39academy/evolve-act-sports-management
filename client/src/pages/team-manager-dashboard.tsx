@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Calendar, Trophy, LogOut, Trash2, Edit, X } from 'lucide-react';
+import { Plus, Users, Calendar, Trophy, LogOut, Trash2, Edit, X, Hotel, CheckCircle, Clock, AlertCircle, UserCheck, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { countryCodes } from '@shared/schema';
@@ -56,6 +56,37 @@ interface Tournament {
   approved: string;
 }
 
+interface AccommodationRequest {
+  id: number;
+  teamMemberId: number;
+  teamRequestId: number;
+  hotelId?: number;
+  roomCategoryId?: number;
+  status: string;
+  assignedDate?: string;
+  checkinDate?: string;
+  checkoutDate?: string;
+  actualCheckinDate?: string;
+  actualCheckoutDate?: string;
+  checkinStatus?: string;
+  checkoutStatus?: string;
+  accommodationPreferences?: string;
+  teamMember?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+  };
+  hotel?: {
+    name: string;
+    address: string;
+  };
+  roomCategory?: {
+    name: string;
+    pricePerNight: number;
+  };
+}
+
 const genderOptions = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
@@ -66,6 +97,223 @@ const sportsOptions = [
   'Football', 'Basketball', 'Cricket', 'Tennis', 'Volleyball', 'Badminton', 
   'Table Tennis', 'Swimming', 'Athletics', 'Hockey', 'Chess', 'Kabaddi'
 ];
+
+// Accommodation Card Component
+function AccommodationCard({ teamRequest }: { teamRequest: TeamRequest }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: accommodationRequests, isLoading: accommodationLoading } = useQuery({
+    queryKey: [`/api/team-manager/team-requests/${teamRequest.id}/accommodation-requests`],
+    enabled: !!teamRequest.id,
+  });
+
+  const bulkCheckinMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest(`/api/team-manager/team-requests/${teamRequest.id}/bulk-checkin`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/team-manager/team-requests/${teamRequest.id}/accommodation-requests`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to check in players',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const bulkCheckoutMutation = useMutation({
+    mutationFn: async (isEarlyCheckout: boolean) => {
+      return await apiRequest(`/api/team-manager/team-requests/${teamRequest.id}/bulk-checkout`, {
+        method: 'POST',
+        body: { isEarlyCheckout },
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/team-manager/team-requests/${teamRequest.id}/accommodation-requests`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to check out players',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case 'assigned':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700"><Hotel className="h-3 w-3 mr-1" />Assigned</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-50 text-green-700"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-50 text-red-700"><AlertCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getCheckinStatusBadge = (checkinStatus: string) => {
+    switch (checkinStatus) {
+      case 'checked_in':
+        return <Badge variant="outline" className="bg-green-50 text-green-700"><UserCheck className="h-3 w-3 mr-1" />Checked In</Badge>;
+      case 'not_checked_in':
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><UserX className="h-3 w-3 mr-1" />Not Checked In</Badge>;
+      default:
+        return <Badge variant="outline">{checkinStatus}</Badge>;
+    }
+  };
+
+  const getCheckoutStatusBadge = (checkoutStatus: string) => {
+    switch (checkoutStatus) {
+      case 'checked_out':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700"><UserX className="h-3 w-3 mr-1" />Checked Out</Badge>;
+      case 'not_checked_out':
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><UserCheck className="h-3 w-3 mr-1" />Not Checked Out</Badge>;
+      default:
+        return <Badge variant="outline">{checkoutStatus}</Badge>;
+    }
+  };
+
+  const approvedRequests = accommodationRequests?.filter((req: AccommodationRequest) => req.status === 'approved') || [];
+  const checkedInCount = approvedRequests.filter((req: AccommodationRequest) => req.checkinStatus === 'checked_in').length;
+  const canCheckIn = approvedRequests.some((req: AccommodationRequest) => req.checkinStatus === 'not_checked_in');
+  const canCheckOut = approvedRequests.some((req: AccommodationRequest) => req.checkinStatus === 'checked_in' && req.checkoutStatus === 'not_checked_out');
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="flex items-center space-x-2">
+              <Hotel className="h-5 w-5" />
+              <span>{teamRequest.teamName}</span>
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Sport: {teamRequest.sport} • Tournament ID: {teamRequest.tournamentId}
+            </CardDescription>
+          </div>
+          <Badge className="bg-green-500">
+            {teamRequest.status}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {accommodationLoading ? (
+          <div className="flex justify-center p-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Accommodation Requests: {accommodationRequests?.length || 0}
+              </div>
+              <div className="text-sm text-gray-600">
+                Checked In: {checkedInCount} / {approvedRequests.length}
+              </div>
+            </div>
+
+            {/* Bulk Actions */}
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => bulkCheckinMutation.mutate()}
+                disabled={!canCheckIn || bulkCheckinMutation.isPending}
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                {bulkCheckinMutation.isPending ? 'Checking In...' : 'Bulk Check In'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => bulkCheckoutMutation.mutate(false)}
+                disabled={!canCheckOut || bulkCheckoutMutation.isPending}
+              >
+                <UserX className="h-4 w-4 mr-2" />
+                {bulkCheckoutMutation.isPending ? 'Checking Out...' : 'Bulk Check Out'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => bulkCheckoutMutation.mutate(true)}
+                disabled={!canCheckOut || bulkCheckoutMutation.isPending}
+              >
+                <UserX className="h-4 w-4 mr-2" />
+                Early Check Out
+              </Button>
+            </div>
+
+            {/* Accommodation Requests List */}
+            <div className="space-y-2">
+              {accommodationRequests?.map((request: AccommodationRequest) => (
+                <div key={request.id} className="p-3 border rounded-lg bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="font-medium">
+                        {request.teamMember?.firstName} {request.teamMember?.lastName}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {request.teamMember?.email} • {request.teamMember?.phoneNumber}
+                      </div>
+                      {request.hotel && (
+                        <div className="text-sm text-gray-600">
+                          Hotel: {request.hotel.name}
+                        </div>
+                      )}
+                      {request.roomCategory && (
+                        <div className="text-sm text-gray-600">
+                          Room: {request.roomCategory.name} (₹{request.roomCategory.pricePerNight}/night)
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      {getStatusBadge(request.status)}
+                      {request.checkinStatus && getCheckinStatusBadge(request.checkinStatus)}
+                      {request.checkoutStatus && getCheckoutStatusBadge(request.checkoutStatus)}
+                    </div>
+                  </div>
+                  
+                  {/* Check-in/Check-out dates */}
+                  <div className="mt-2 text-xs text-gray-500">
+                    {request.checkinDate && (
+                      <div>Check-in: {new Date(request.checkinDate).toLocaleDateString()}</div>
+                    )}
+                    {request.checkoutDate && (
+                      <div>Check-out: {new Date(request.checkoutDate).toLocaleDateString()}</div>
+                    )}
+                    {request.actualCheckinDate && (
+                      <div>Actual Check-in: {new Date(request.actualCheckinDate).toLocaleDateString()}</div>
+                    )}
+                    {request.actualCheckoutDate && (
+                      <div>Actual Check-out: {new Date(request.actualCheckoutDate).toLocaleDateString()}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function TeamManagerDashboard() {
   const [showAddTeamDialog, setShowAddTeamDialog] = useState(false);
@@ -286,8 +534,9 @@ export default function TeamManagerDashboard() {
       {/* Main Content */}
       <div className="container mx-auto p-6">
         <Tabs defaultValue="team-requests" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="team-requests">Team Requests</TabsTrigger>
+            <TabsTrigger value="accommodation">Accommodation</TabsTrigger>
             <TabsTrigger value="add-team">Add New Team</TabsTrigger>
           </TabsList>
 
@@ -359,6 +608,24 @@ export default function TeamManagerDashboard() {
                       </div>
                     </CardContent>
                   </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="accommodation" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Accommodation Management</h2>
+            </div>
+
+            {teamRequestsLoading ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {teamRequests?.filter((request: TeamRequest) => request.status === 'approved').map((request: TeamRequest) => (
+                  <AccommodationCard key={request.id} teamRequest={request} />
                 ))}
               </div>
             )}
