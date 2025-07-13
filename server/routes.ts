@@ -17,6 +17,7 @@ import {
   type ForgotPasswordData,
   type ResetPasswordData
 } from "@shared/schema";
+import bcrypt from "bcryptjs";
 
 // Extend session data interface
 declare module "express-session" {
@@ -1310,18 +1311,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } else {
           // Create a new user account for the team member
-          const newUser = await storage.createUser({
+          const hashedPassword = await bcrypt.hash('Test@123', 12);
+          const userData = {
             email: member.email,
-            password: 'Test@123',
+            password: hashedPassword,
             firstName: member.firstName,
             lastName: member.lastName,
-            role: 'player',
+            role: 'player' as const,
+            organization: `${teamName} Team`,
             mobileCountryCode: member.phoneCountryCode,
             mobileNumber: member.phoneNumber,
             whatsappCountryCode: member.phoneCountryCode,
-            whatsappNumber: member.phoneNumber,
-            emailVerified: true
-          });
+            whatsappNumber: member.phoneNumber
+          };
+          const newUser = await storage.createUser(userData);
+          
+          // Mark user as verified since they're created by Event Manager
+          await storage.updateUserVerification(newUser.id, true);
           
           // Update team member with user ID
           await storage.updateTeamMember(teamMember.id, { userId: newUser.id });
@@ -1329,15 +1335,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Create accommodation request if needed
         if (member.requiresAccommodation) {
-          await storage.createPlayerAccommodationRequest({
-            playerUserId: existingUser?.id || createdMembers[createdMembers.length - 1].userId,
-            teamRequestId: teamRequest.id,
-            playerName: `${member.firstName} ${member.lastName}`,
-            playerEmail: member.email,
-            playerPhone: `${member.phoneCountryCode} ${member.phoneNumber}`,
-            accommodationPreferences: member.accommodationPreferences,
-            status: 'pending'
-          });
+          const playerId = existingUser?.id || (await storage.getUserByEmail(member.email))?.id;
+          if (playerId) {
+            await storage.createPlayerAccommodationRequest({
+              playerUserId: playerId,
+              teamRequestId: teamRequest.id,
+              playerName: `${member.firstName} ${member.lastName}`,
+              playerEmail: member.email,
+              playerPhone: `${member.phoneCountryCode} ${member.phoneNumber}`,
+              accommodationPreferences: member.accommodationPreferences,
+              status: 'pending'
+            });
+          }
         }
       }
       
