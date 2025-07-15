@@ -250,7 +250,19 @@ The system includes 21 pre-approved sample users across all roles:
 - **Form Validation** - Available rooms field disabled for pay-per-use hotels (auto-calculated from total rooms)
 - **Complete Testing Ready** - All workflows tested and ready for user demonstration
 
-## Recent Changes (July 13, 2025)
+## Recent Changes (July 15, 2025)
+
+### Intelligent Hotel Assignment Workflow - COMPLETED ✅
+- **Priority-Based Auto-Assignment** - System prioritizes pay-per-use hotels with auto-approval over on-availability hotels
+- **Smart Room Availability Management** - Real-time tracking of available rooms with automatic decreases upon confirmation
+- **Enhanced Auto-Assignment Logic** - Finds best available hotel in cluster based on booking type and room availability
+- **Pay-Per-Use Auto-Approval** - Pay-per-use hotels automatically approve accommodations and immediately decrease room availability
+- **On-Availability Hotel Workflow** - On-availability hotels require hotel manager approval before room allocation
+- **Room Availability Tracking** - Both hotel-level and room-category-level availability updated automatically
+- **Rejection Handling Workflow** - Rejected requests appear in Event Manager's dashboard for reassignment
+- **Database Schema Enhancements** - Added proper status tracking and response fields for complete audit trail
+- **Complete API Integration** - Full REST API support for auto-assignment, manual assignment, and hotel responses
+- **Comprehensive Documentation** - Created ACCOMMODATION_WORKFLOW_GUIDE.md with complete system overview
 
 ### Windows Testing Setup - COMPLETED ✅
 - **Environment Variable Loading** - Created load-env.js to properly load .env files on Windows

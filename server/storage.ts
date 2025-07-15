@@ -721,26 +721,82 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignHotelToPlayerAccommodation(accommodationId: number, hotelId: number, roomCategoryId: number, assignedBy: number): Promise<PlayerAccommodationRequest> {
+    // Get hotel info to determine booking type
+    const hotel = await this.getHotelById(hotelId);
+    if (!hotel) {
+      throw new Error('Hotel not found');
+    }
+
+    // Check room availability
+    const roomCategory = await db
+      .select()
+      .from(roomCategories)
+      .where(eq(roomCategories.id, roomCategoryId))
+      .limit(1);
+
+    if (roomCategory.length === 0) {
+      throw new Error('Room category not found');
+    }
+
+    if (roomCategory[0].availableRooms <= 0) {
+      throw new Error('No rooms available in this category');
+    }
+
+    // Determine status based on hotel booking type
+    let newStatus = 'hotel_assigned';
+    
+    if (hotel.bookingType === 'pay_per_use') {
+      // Pay-per-use hotels auto-approve and immediately decrease availability
+      newStatus = 'confirmed';
+      await this.decreaseRoomAvailability(hotelId, roomCategoryId);
+    } else {
+      // On-availability hotels need hotel manager approval
+      newStatus = 'hotel_assigned';
+    }
+
     const [updatedRequest] = await db
       .update(playerAccommodationRequests)
       .set({
         hotelId,
         roomCategoryId,
-        status: 'hotel_assigned',
+        status: newStatus,
         assignedBy,
         assignedAt: new Date(),
         updatedAt: new Date()
       })
       .where(eq(playerAccommodationRequests.id, accommodationId))
       .returning();
+    
     return updatedRequest;
   }
 
   async respondToPlayerAccommodationRequest(accommodationId: number, status: string, reason?: string, respondedBy?: number): Promise<PlayerAccommodationRequest> {
+    // Get the current request to check hotel type and room info
+    const currentRequest = await db
+      .select()
+      .from(playerAccommodationRequests)
+      .where(eq(playerAccommodationRequests.id, accommodationId))
+      .limit(1);
+
+    if (currentRequest.length === 0) {
+      throw new Error('Accommodation request not found');
+    }
+
+    const request = currentRequest[0];
+    
+    // Determine the new status based on response
+    let newStatus = status;
+    if (status === 'hotel_approved') {
+      newStatus = 'confirmed';
+    } else if (status === 'hotel_rejected') {
+      newStatus = 'hotel_rejected';
+    }
+
+    // Update the request status
     const [updatedRequest] = await db
       .update(playerAccommodationRequests)
       .set({
-        status,
+        status: newStatus,
         hotelResponseReason: reason,
         hotelRespondedBy: respondedBy,
         hotelRespondedAt: new Date(),
@@ -748,6 +804,15 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(playerAccommodationRequests.id, accommodationId))
       .returning();
+
+    // Handle room availability changes
+    if (status === 'hotel_approved' && request.hotelId && request.roomCategoryId) {
+      // Decrease room availability when approved (for on-availability hotels)
+      await this.decreaseRoomAvailability(request.hotelId, request.roomCategoryId);
+    }
+    // Note: For rejected requests, no room availability changes needed
+    // The Event Manager will need to reassign from the rejected accommodations list
+
     return updatedRequest;
   }
 
@@ -838,30 +903,93 @@ export class DatabaseStorage implements IStorage {
   }
 
   async autoAssignHotelToPlayerAccommodation(accommodationId: number, clusterId: number, assignedBy: number): Promise<PlayerAccommodationRequest> {
-    // Get available hotels in the cluster
+    // Get available hotels in the cluster with room categories
     const availableHotels = await db
-      .select()
+      .select({
+        hotel: hotels,
+        roomCategory: roomCategories
+      })
       .from(hotels)
-      .where(eq(hotels.clusterId, clusterId));
+      .leftJoin(roomCategories, eq(hotels.id, roomCategories.hotelId))
+      .where(
+        and(
+          eq(hotels.clusterId, clusterId),
+          eq(hotels.approved, 'approved'),
+          gt(roomCategories.availableRooms, 0)
+        )
+      )
+      .orderBy(
+        // Priority: 1. Pay-per-use hotels first, 2. Then on-availability hotels
+        sql`CASE WHEN ${hotels.bookingType} = 'pay_per_use' THEN 1 ELSE 2 END`,
+        desc(roomCategories.availableRooms)
+      );
 
     if (availableHotels.length === 0) {
-      throw new Error('No available hotels in the selected cluster');
+      throw new Error('No available hotels with rooms in the selected cluster');
     }
 
-    const selectedHotel = availableHotels[0];
-
-    // Get room categories for the selected hotel
-    const roomCategoryList = await db
-      .select()
-      .from(roomCategories)
-      .where(eq(roomCategories.hotelId, selectedHotel.id));
-
-    if (roomCategoryList.length === 0) {
-      throw new Error('No room categories available for the selected hotel');
+    // Group hotels by hotel ID and find the best option
+    const hotelMap = new Map();
+    for (const item of availableHotels) {
+      if (!hotelMap.has(item.hotel.id)) {
+        hotelMap.set(item.hotel.id, {
+          hotel: item.hotel,
+          roomCategories: []
+        });
+      }
+      if (item.roomCategory) {
+        hotelMap.get(item.hotel.id).roomCategories.push(item.roomCategory);
+      }
     }
 
-    const selectedRoomCategory = roomCategoryList[0];
+    // Find the best hotel based on priority
+    let selectedHotel = null;
+    let selectedRoomCategory = null;
+    let isPayPerUse = false;
+
+    // First try to find a pay-per-use hotel with availability
+    for (const [hotelId, hotelData] of hotelMap) {
+      if (hotelData.hotel.bookingType === 'pay_per_use' && hotelData.roomCategories.length > 0) {
+        selectedHotel = hotelData.hotel;
+        selectedRoomCategory = hotelData.roomCategories[0]; // Get first available room category
+        isPayPerUse = true;
+        break;
+      }
+    }
+
+    // If no pay-per-use hotel found, try on-availability hotels
+    if (!selectedHotel) {
+      for (const [hotelId, hotelData] of hotelMap) {
+        if (hotelData.hotel.bookingType === 'on_availability' && hotelData.roomCategories.length > 0) {
+          selectedHotel = hotelData.hotel;
+          selectedRoomCategory = hotelData.roomCategories[0];
+          isPayPerUse = false;
+          break;
+        }
+      }
+    }
+
+    if (!selectedHotel || !selectedRoomCategory) {
+      throw new Error('No suitable hotel found for assignment');
+    }
+
+    // Determine the status based on hotel type
+    let newStatus = 'hotel_assigned';
+    let responseStatus = 'pending';
     
+    if (isPayPerUse) {
+      // Pay-per-use hotels auto-approve
+      newStatus = 'confirmed';
+      responseStatus = 'approved';
+      
+      // Immediately decrease room availability for pay-per-use hotels
+      await this.decreaseRoomAvailability(selectedHotel.id, selectedRoomCategory.id);
+    } else {
+      // On-availability hotels need hotel manager approval
+      newStatus = 'hotel_assigned';
+      responseStatus = 'pending';
+    }
+
     // Assign the hotel and room category
     const [updatedRequest] = await db
       .update(playerAccommodationRequests)
@@ -869,7 +997,8 @@ export class DatabaseStorage implements IStorage {
         hotelId: selectedHotel.id,
         roomCategoryId: selectedRoomCategory.id,
         clusterId,
-        status: 'hotel_assigned',
+        status: newStatus,
+        responseStatus,
         assignedBy,
         assignedAt: new Date(),
         updatedAt: new Date()
