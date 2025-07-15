@@ -1648,6 +1648,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fetch approved teams without complete hotel assignments
+  app.get('/api/event-manager/approved-teams-without-hotels', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user || !['event_manager', 'admin', 'lead_admin', 'state_admin_manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const approvedTeamsWithoutHotels = await storage.getApprovedTeamsWithoutHotels();
+      res.json(approvedTeamsWithoutHotels);
+    } catch (error) {
+      console.error("Error fetching approved teams without hotels:", error);
+      res.status(500).json({ message: "Failed to fetch approved teams without hotels" });
+    }
+  });
+
   // Hotel Manager bulk check-in QR code processing
   app.post('/api/hotel-manager/process-bulk-qr', requireAuth, async (req: any, res) => {
     try {

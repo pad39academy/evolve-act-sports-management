@@ -166,6 +166,7 @@ export interface IStorage {
   respondToPlayerAccommodationRequest(accommodationId: number, status: string, reason?: string, respondedBy?: number): Promise<PlayerAccommodationRequest>;
   getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<PlayerAccommodationRequest[]>;
   getRejectedAccommodationRequests(): Promise<PlayerAccommodationRequest[]>;
+  getApprovedTeamsWithoutHotels(): Promise<any[]>;
   
   // Bulk check-in/check-out operations for team managers
   bulkCheckInPlayers(teamRequestId: number, checkedInBy: number): Promise<PlayerAccommodationRequest[]>;
@@ -848,6 +849,24 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(hotels, eq(playerAccommodationRequests.hotelId, hotels.id))
       .leftJoin(roomCategories, eq(playerAccommodationRequests.roomCategoryId, roomCategories.id))
       .where(eq(playerAccommodationRequests.status, 'hotel_rejected'));
+  }
+
+  // Get approved teams without complete hotel assignments
+  async getApprovedTeamsWithoutHotels(): Promise<any[]> {
+    const result = await db
+      .select({
+        teamRequest: teamRequests,
+        accommodationRequestsCount: sql<number>`COUNT(${playerAccommodationRequests.id})`,
+        assignedHotelsCount: sql<number>`COUNT(CASE WHEN ${playerAccommodationRequests.hotelId} IS NOT NULL THEN 1 END)`,
+        unassignedRequestsCount: sql<number>`COUNT(CASE WHEN ${playerAccommodationRequests.hotelId} IS NULL THEN 1 END)`
+      })
+      .from(teamRequests)
+      .leftJoin(playerAccommodationRequests, eq(teamRequests.id, playerAccommodationRequests.teamRequestId))
+      .where(eq(teamRequests.status, 'approved'))
+      .groupBy(teamRequests.id)
+      .having(sql`COUNT(${playerAccommodationRequests.id}) > 0 AND COUNT(CASE WHEN ${playerAccommodationRequests.hotelId} IS NULL THEN 1 END) > 0`);
+
+    return result;
   }
 
   async getPlayerAccommodationRequestsByPlayer(playerId: number): Promise<any[]> {

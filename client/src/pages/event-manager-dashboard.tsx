@@ -258,6 +258,12 @@ export default function EventManagerDashboard() {
     retry: false,
   });
 
+  // Fetch approved teams without complete hotel assignments
+  const { data: approvedTeamsWithoutHotels } = useQuery({
+    queryKey: ['/api/event-manager/approved-teams-without-hotels'],
+    retry: false,
+  });
+
   // Tournament mutations
   const createTournamentMutation = useMutation({
     mutationFn: (data: any) => {
@@ -901,13 +907,14 @@ export default function EventManagerDashboard() {
       {/* Main Content */}
       <div className="container mx-auto p-6">
         <Tabs defaultValue="tournaments" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="clusters">Hotel Clusters</TabsTrigger>
           <TabsTrigger value="hotels">Assign Hotels</TabsTrigger>
           <TabsTrigger value="add-team">Add Team</TabsTrigger>
           <TabsTrigger value="team-approvals">Team Approvals</TabsTrigger>
+          <TabsTrigger value="book-hotel">Book Hotel</TabsTrigger>
           <TabsTrigger value="rejected-accommodations">Rejected Accommodations</TabsTrigger>
         </TabsList>
         
@@ -1431,6 +1438,85 @@ export default function EventManagerDashboard() {
               <p>No pending team requests</p>
             </div>
           )}
+        </TabsContent>
+
+        {/* Book Hotel Tab */}
+        <TabsContent value="book-hotel" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Book Hotel</h2>
+            <p className="text-sm text-gray-600">
+              Assign hotels to approved teams without complete hotel bookings
+            </p>
+          </div>
+          
+          <div className="grid gap-4">
+            {approvedTeamsWithoutHotels?.map((team: any) => (
+              <Card key={team.teamRequest.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="w-5 h-5" />
+                        {team.teamRequest.teamName}
+                      </CardTitle>
+                      <CardDescription>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="flex items-center gap-1">
+                            <Trophy className="w-4 h-4" />
+                            {team.teamRequest.sport}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            Approved on {new Date(team.teamRequest.approvedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {team.accommodationRequestsCount} Total / {team.unassignedRequestsCount} Pending
+                      </Badge>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setSelectedTeamRequest(team.teamRequest);
+                          setShowAccommodationDialog(true);
+                        }}
+                      >
+                        <Hotel className="w-4 h-4 mr-2" />
+                        Assign Hotels
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Accommodation requests: {team.accommodationRequestsCount}</span>
+                    <span>Hotels assigned: {team.assignedHotelsCount}</span>
+                    <span>Pending assignments: {team.unassignedRequestsCount}</span>
+                  </div>
+                  {team.teamRequest.specialRequests && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                      <strong>Special Requests:</strong> {team.teamRequest.specialRequests}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+            
+            {(!approvedTeamsWithoutHotels || approvedTeamsWithoutHotels.length === 0) && (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Hotel className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No approved teams need hotel assignments</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    All approved teams have complete hotel bookings
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         {/* Rejected Accommodations Tab */}
