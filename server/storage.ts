@@ -49,7 +49,7 @@ import {
   type InsertPlayerAccommodationRequest,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql, gt } from "drizzle-orm";
+import { eq, and, or, gt, lt, gte, lte, isNull, asc, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -917,11 +917,6 @@ export class DatabaseStorage implements IStorage {
           eq(hotels.approved, 'approved'),
           gt(roomCategories.availableRooms, 0)
         )
-      )
-      .orderBy(
-        // Priority: 1. Pay-per-use hotels first, 2. Then on-availability hotels
-        sql`CASE WHEN ${hotels.bookingType} = 'pay_per_use' THEN 1 ELSE 2 END`,
-        desc(roomCategories.availableRooms)
       );
 
     if (availableHotels.length === 0) {
